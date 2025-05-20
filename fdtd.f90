@@ -33,13 +33,13 @@ MODULE fdtd
             ! Initialisation des variables
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
-            ALLOCATE(cn%Ex  (     0:Nx, 0:Ny    ) )       
-            ALLOCATE(cn%Ey  (     0:Nx, 0:Ny    ) )  
-            ALLOCATE(cn%B   (        0:Nx       ) )
-            ALLOCATE(cn%Hz  (       0:Nx, 0:Ny        ) ) 
-            ALLOCATE(cn%A   ( 0 : 3 * Nx + 2, 0: 3 * Ny + 2  ))
-            ALLOCATE(cn%c_E (     0:Nx, 0:Ny    ) )
-            ALLOCATE(cn%c_H (     0:Nx, 0:Ny    ) )
+            ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                   ) )       
+            ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                   ) )  
+            ALLOCATE(cn%B   (                      0 : 3 * Nx + 2             ) )
+            ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                   ) ) 
+            ALLOCATE(cn%A   (         0 : 3 * Nx + 2 , 0: 3 * Ny + 2          ) )
+            ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                   ) )
+            ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                   ) )
 
             cn%N_d = (/ (10*i, i = 0,10) /)
             ! PRINT *, 'N_d = ', cn%N_d
@@ -117,23 +117,29 @@ MODULE fdtd
                   A1(Nx, Nx - 1) = cn%a1 / cn%dy
                   A1(Nx, Nx) = 1.0d0
 
-            ! Affichage de la matrice A1
-            WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i, A1(i,:)
-            END DO
+            ! ! Affichage de la matrice A1
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i, A1(i,:)
+            ! END DO
             
+
+
+
             !---------------------------------------------------!
             !------------------ Sous matrice 2 -----------------!
             !---------------------------------------------------!     
                   
                   A2 = A1
 
-            ! Affichage de la matrice A2
-            WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i, A2(i,:)
-            END DO
+            ! ! Affichage de la matrice A2
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i, A2(i,:)
+            ! END DO
+
+
+
 
             !---------------------------------------------------!
             !------------------ Sous matrice 3 -----------------!
@@ -163,13 +169,14 @@ MODULE fdtd
                   A3(Nx, Nx - 1) = - cn%a2 / cn%dx
                   A3(Nx - 1, Nx) =   cn%a2 / cn%dy
 
-            ! Affichage de la matrice A3
-            WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.5)') i, A3(i,:)
-            END DO
-            !---------------------------------------------------!
-
+            ! ! Affichage de la matrice A3
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.5)') i, A3(i,:)
+            ! END DO
+            !
+             
+            !---------------------------------------------------------------!
             !------------------ Assemblage de la matrice A -----------------!
             !---------------------------------------------------------------!
 
@@ -182,12 +189,12 @@ MODULE fdtd
             cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
             cn%A(i2  :i2 + Nx, j2  :j2 + Ny)   = A3
 
-            ! Affichage de la matrice A
-            WRITE(*, '(/, T5, A, /)') "Matrice A :"
-            DO i = 0, 3 * Nx + 2
-                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
-            END DO
-            ! !---------------------------------------------------!
+            ! ! Affichage de la matrice A
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            ! DO i = 0, 3 * Nx + 2
+            !       WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            ! END DO
+            ! ! !---------------------------------------------------!
 
 
             
@@ -209,14 +216,35 @@ MODULE fdtd
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
                   END IF
 
-                  !-----------------------------------------------------------------------------------------!
-                  !------------------ Ecriture du vecteur second membre B_E et résolution ------------------!
-                  !-----------------------------------------------------------------------------------------!
+                  !-------------------------------------------------------------!
+                  !------------------- Ecriture du vecteur B -------------------!
+                  !-------------------------------------------------------------!
+                  DO i = 0, Nx 
+                        DO j =1, Ny-1
+                              cn%B(i) = cn%Ex(i,j) + cn%a1 /cn%dy * (cn%Hz(i,j+1) - cn%Hz(i,j-1))
+                        END DO
+                  END DO
 
-                  
-                  !-----------------------------------------------------------------------------------------!
-                  !------------------ Ecriture du vecteur second membre B_H et résolution ------------------!
-                  !-----------------------------------------------------------------------------------------!
+                  DO j = 0, Ny
+                        DO i = 1, Nx-1
+                              cn%B(j + Nx + 1) = cn%Ey(i,j) - cn%a1 /cn%dx * (cn%Hz(i+1,j) - cn%Hz(i-1,j))
+                        END DO
+                  END DO
+
+                  DO i = 1, Nx - 1
+                        DO j = 1, Ny - 1
+                              cn%B(i + 2*(Nx + 1)) = cn%Hz(i,j) - cn%a2 / cn%dy * (cn%Ex(i,j+1) - cn%Ex(i,j-1)) &
+                                                                + cn%a2 / cn%dx * (cn%Ey(i+1,j) - cn%Ey(i-1,j))
+                        END DO
+                  END DO
+
+                  ! ! Affichage du vecteur B
+                  ! if (n == Nt - 1) then
+                  !       WRITE(*, '(/, T5, A, /)') "Vecteur B :"
+                  !       DO i = 0, 3 * Nx + 2
+                  !             WRITE(*, '(I5,500F12.5)') i, cn%B(i)
+                  !       END DO
+                  ! END IF
 
                   
                   
