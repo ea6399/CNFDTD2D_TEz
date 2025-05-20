@@ -83,6 +83,7 @@ MODULE fdtd
             INTEGER :: info
             INTEGER :: n, m
             INTEGER :: i,j
+            INTEGER :: i0,j0,i1,j1,i2,j2
             INTEGER :: snapshot
             REAL(8) :: A1(0:Nx, 0:Ny)
             REAL(8) :: A2(0:Nx, 0:Ny)
@@ -169,6 +170,24 @@ MODULE fdtd
             END DO
             !---------------------------------------------------!
 
+            !------------------ Assemblage de la matrice A -----------------!
+            !---------------------------------------------------------------!
+
+            i0 = 0;        j0 = 0
+            i1 = Nx + 1;   j1 = Ny + 1
+            i2 = 2*(Nx+1); j2 = 2*(Ny+1)
+
+            ! Collage des blocs
+            cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = A1
+            cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
+            cn%A(i2  :i2 + Nx, j2  :j2 + Ny)   = A3
+
+            ! Affichage de la matrice A
+            WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            DO i = 0, 3 * Nx + 2
+                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            END DO
+            ! !---------------------------------------------------!
 
 
             
