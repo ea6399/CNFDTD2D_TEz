@@ -2,7 +2,7 @@ FC      = gfortran
 FFLAGS  = -ffree-line-length-none -fbacktrace -Wall -Wextra -O2
 LDLIBS  = -llapack -lblas
 
-SRC     = numerics.f90 source.f90 fdtd.f90 main.f90
+SRC     = numerics.f90 source.f90 fdtd.f90  main.f90
 OBJDIR  = obj
 MODDIR  = mod
 BINDIR  = bin

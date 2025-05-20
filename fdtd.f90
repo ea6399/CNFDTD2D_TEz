@@ -36,10 +36,10 @@ MODULE fdtd
             ALLOCATE(cn%Ex  (     0:Nx, 0:Ny    ) )       
             ALLOCATE(cn%Ey  (     0:Nx, 0:Ny    ) )  
             ALLOCATE(cn%B   (        0:Nx       ) )
-            ALLOCATE(cn%Hz  (     0:Nx, 0:Ny    ) ) 
-            ALLOCATE(cn%A   (     0:Nx, 0:Ny    ) )
+            ALLOCATE(cn%Hz  (       0:Nx, 0:Ny        ) ) 
+            ALLOCATE(cn%A   ( 0 : 3 * Nx + 2, 0: 3 * Ny + 2  ))
             ALLOCATE(cn%c_E (     0:Nx, 0:Ny    ) )
-            ALLOCATE(cn%c_H (     0:Nx, 0:Ny    ) ) 
+            ALLOCATE(cn%c_H (     0:Nx, 0:Ny    ) )
 
             cn%N_d = (/ (10*i, i = 0,10) /)
             ! PRINT *, 'N_d = ', cn%N_d
@@ -82,8 +82,13 @@ MODULE fdtd
             ! Variables locales
             INTEGER :: info
             INTEGER :: n, m
-            INTEGER :: i
+            INTEGER :: i,j
             INTEGER :: snapshot
+            REAL(8) :: A1(0:Nx, 0:Ny)
+            REAL(8) :: A2(0:Nx, 0:Ny)
+            REAL(8) :: A3(0:Nx, 0:Ny)
+
+            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0
 
             WRITE (*, '(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I3X, I3)') "shape(A) = ", shape(cn%A)
@@ -91,11 +96,80 @@ MODULE fdtd
 
             m = 0       
 
-            
 
             !-------------------------------------------------------------!
             !------------------ Ecriture de la matrice A -----------------!
             !-------------------------------------------------------------!
+
+            !---------------------------------------------------!
+            !------------------ Sous matrice 1 -----------------!
+            !---------------------------------------------------!
+                  A1(0,0) = 1.0d0
+                  A1(0,1) = - cn%a1 / cn%dy
+
+                  DO i = 1, Nx - 1
+                        A1(i,i-1) = cn%a1 / cn%dy
+                        A1(i,i) = 1.0d0
+                        A1(i,i+1) = - cn%a1 / cn%dy
+                  END DO
+
+                  A1(Nx, Nx - 1) = cn%a1 / cn%dy
+                  A1(Nx, Nx) = 1.0d0
+
+            ! Affichage de la matrice A1
+            WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
+            DO i = 0, Nx
+                  WRITE(*, '(I5,500F12.2)') i, A1(i,:)
+            END DO
+            
+            !---------------------------------------------------!
+            !------------------ Sous matrice 2 -----------------!
+            !---------------------------------------------------!     
+                  
+                  A2 = A1
+
+            ! Affichage de la matrice A2
+            WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
+            DO i = 0, Nx
+                  WRITE(*, '(I5,500F12.2)') i, A2(i,:)
+            END DO
+
+            !---------------------------------------------------!
+            !------------------ Sous matrice 3 -----------------!
+            !---------------------------------------------------!
+
+                  A3(0,0) = 1.d0
+                  A3(0,1) = - cn%a2 / cn%dx
+                  A3(1,0) = - cn%a2 / cn%dy
+                  A3(1,1) = 0.d0
+
+                  DO i = 3, Nx-3, 3
+                        j = i
+                        A3(i-1 ,j-1) = 0.d0
+                        A3(i-1 ,j)   = cn%a2/cn%dx 
+                        A3(i-1 ,j+1) = 0.d0
+
+                        A3(i,j-1)   = - cn%a2/cn%dy
+                        A3(i,j)     = 1.d0
+                        A3(i,j+1)   = - cn%a2/cn%dx
+
+                        A3(i+1,j-1) = 0.d0
+                        A3(i+1,j)   = cn%a2/cn%dx
+                        A3(i+1,j+1) = 0.d0
+                  END DO
+
+                  A3(Nx, Nx) = 1.d0
+                  A3(Nx, Nx - 1) = - cn%a2 / cn%dx
+                  A3(Nx - 1, Nx) =   cn%a2 / cn%dy
+
+            ! Affichage de la matrice A3
+            WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
+            DO i = 0, Nx
+                  WRITE(*, '(I5,500F12.5)') i, A3(i,:)
+            END DO
+            !---------------------------------------------------!
+
+
 
             
 
@@ -116,9 +190,9 @@ MODULE fdtd
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
                   END IF
 
-                  !----------------------------------------------------------------------------------------!
-                  !------------------ Ecriture du vecteur second membre B_E et résolution -----------------!
-                  !----------------------------------------------------------------------------------------!
+                  !-----------------------------------------------------------------------------------------!
+                  !------------------ Ecriture du vecteur second membre B_E et résolution ------------------!
+                  !-----------------------------------------------------------------------------------------!
 
                   
                   !-----------------------------------------------------------------------------------------!
@@ -159,8 +233,8 @@ MODULE fdtd
             IF (ALLOCATED(cn%Hz)) THEN
             DEALLOCATE(cn%Hz)
             END IF
-            IF (ALLOCATED(cn%c_Ex)) THEN
-            DEALLOCATE(cn%c_Ex)
+            IF (ALLOCATED(cn%c_E)) THEN
+            DEALLOCATE(cn%c_E)
             END IF
             IF (ALLOCATED(cn%c_H)) THEN
             DEALLOCATE(cn%c_H)

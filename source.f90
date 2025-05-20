@@ -1,12 +1,13 @@
 module source
+
       use numerics
+
+      IMPLICIT NONE
 
       CONTAINS
 
             ! Fonction gaussienne
             FUNCTION gauss_t(n,dt)
-                  IMPLICIT NONE
-                  ! REour
                   REAL(8) :: gauss_t, dt
 
                   ! Arguments
@@ -16,8 +17,6 @@ module source
             ENDFUNCTION gauss_t
 
             SUBROUTINE compute_gauss(E,base, dt)
-                  IMPLICIT NONE
-                  ! Arguments
                   REAL(8), intent(inout) :: base(0:Nt - 1)
                   REAL(8), intent(inout) :: E(0:Nt - 1)
                   REAL(8), intent(in) :: dt
@@ -35,7 +34,7 @@ module source
                         E(n) = gauss_t(n, dt)
                   END DO
 
-                  OPEN(15, file = "Esrc.txt", status = "replace", action = "write", form = "formatted")
+                  OPEN(15, file = "data/Esrc.txt", status = "replace", action = "write", form = "formatted")
                         DO n = 0, Nt - 1
                               WRITE(15, *) base_Esrc(n), Esrc(n)
                         END DO
@@ -43,6 +42,14 @@ module source
             ENDSUBROUTINE compute_gauss
 
 
-    
+            SUBROUTINE free_source()
+                  ! Libération de la mémoire
+                  IF (ALLOCATED(Esrc)) THEN
+                        DEALLOCATE(Esrc)
+                  END IF
+                  IF (ALLOCATED(base_Esrc)) THEN
+                        DEALLOCATE(base_Esrc)
+                  END IF
+            END SUBROUTINE free_source
 
 end module source

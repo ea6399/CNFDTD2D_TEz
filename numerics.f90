@@ -18,8 +18,8 @@ MODULE numerics
 
       ! Global Parameters
       INTEGER, PARAMETER :: Nt = 1501                                   ! Nombre d'échantillons temps
-      INTEGER, PARAMETER :: Nx = 500                                    ! Nombre d'échantillons espace suivant x
-      INTEGER, PARAMETER :: Ny = 500                                    ! Nombre d'échantillons espace suivant y
+      INTEGER, PARAMETER :: Nx = 12                                    ! Nombre d'échantillons espace suivant x
+      INTEGER, PARAMETER :: Ny = 12                                    ! Nombre d'échantillons espace suivant y
       INTEGER, PARAMETER :: i_src = 250                                 ! Injection de la source suivant l'axe x
       INTEGER, PARAMETER :: j_src = 250                                 ! Injection de la source suivant l'axe y
       INTEGER, PARAMETER :: idfile = 50                                 ! idfile
@@ -29,7 +29,7 @@ MODULE numerics
 
       CONTAINS
 
-      SUBROUTINE init()
+      SUBROUTINE init_source()
             IMPLICIT NONE 
             
             if( .NOT. ALLOCATED(Esrc) )          ALLOCATE(Esrc(0 : Nt - 1))
@@ -38,6 +38,6 @@ MODULE numerics
             Esrc = 0.d0
             base_Esrc = 0.d0
 
-      ENDSUBROUTINE init
+      ENDSUBROUTINE init_source
             
 END MODULE numerics
