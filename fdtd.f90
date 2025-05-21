@@ -35,9 +35,9 @@ MODULE fdtd
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                   ) )       
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                   ) )  
-            ALLOCATE(cn%B   (         0 : 3 * Nx + 2 , 0 : 3 * Ny + 2         ) )
+            ALLOCATE(cn%B   (   0 : 3 * (Nx + 1) - 1 , 0 : 3 * (Ny + 1) - 1   ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                   ) ) 
-            ALLOCATE(cn%A   (         0 : 3 * Nx + 2 , 0: 3 * Ny + 2          ) )
+            ALLOCATE(cn%A   (   0 : 3 * (Nx + 1) - 1 , 0: 3 * (Ny + 1) - 1    ) )
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                   ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                   ) )
 
@@ -234,12 +234,13 @@ MODULE fdtd
             ! -------------------------------------------------------------!
 
             CALL DGETRF(size(cn%A,1),size(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
-            IF (info /= 0) THEN
-                  WRITE(*,*) ' DGETRF failed: U(',info,',',info,') is zero or matrix singular'
-                  WRITE(*,'(A,I0)') 'Pivot row : ', info
-                  WRITE(*,'(502(1X,F12.5))') cn%A(info,1:n)
-                  STOP 'LU décomposition error'
+            IF (info > 0) THEN
+                  WRITE(*,'(/,T5,A,I0,A,I0,A,/)') 'A(',info,',',info,') is exactly zero. '
+            ELSE
+                  WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
             END IF
+            STOP 'LU decomposition error'
+
 
             ! ! ! Affichage de la matrice A
             ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
@@ -277,7 +278,7 @@ MODULE fdtd
                   !-------------------------------------------------------------!
                   DO i = 0, Nx 
                         DO j =1, Ny-1
-                              cn%B(i,j) = cn%Ex(i,j) + cn%a1 /cn%dy * (cn%Hz(i,j+1) - cn%Hz(i,j-1))
+                              cn%B(i,j)             = cn%Ex(i,j) + cn%a1 /cn%dy * (cn%Hz(i,j+1) - cn%Hz(i,j-1))
                         END DO
                   END DO
 
