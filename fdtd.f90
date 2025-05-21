@@ -168,19 +168,15 @@ MODULE fdtd
                   A3(1,0) =   cn%a2 / cn%dy
                   A3(1,1) = 0.d0
 
-                  DO i = 3, Nx-3, 3
+                  DO i = 3, Nx-2, 3
                         j = i
-                        A3(i-1 ,j-1) = 0.d0
                         A3(i-1 ,j)   = - cn%a2/cn%dx 
-                        A3(i-1 ,j+1) = 0.d0
 
                         A3(i,j-1)   = cn%a2/cn%dy
                         A3(i,j)     = 1.d0
                         A3(i,j+1)   = - cn%a2/cn%dx
 
-                        A3(i+1,j-1) = 0.d0
                         A3(i+1,j)   = cn%a2/cn%dx
-                        A3(i+1,j+1) = 0.d0
                   END DO
 
                   A3(Nx, Nx) = 1.d0
@@ -206,6 +202,10 @@ MODULE fdtd
             cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = A1
             cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
             cn%A(i2  :i2 + Nx, j2  :j2 + Ny)   = A3
+
+            print*, i0, i0 + Nx
+            print*, i1, i1 + Nx
+            print*, i2, i2 + Nx
 
             ! ! Affichage de la matrice A
             ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
