@@ -17,7 +17,7 @@ MODULE numerics
       REAL(8), PARAMETER :: t0 = T * sqrt( log(att0) )                  ! Retard de la gaussienne
 
       ! Global Parameters
-      INTEGER, PARAMETER :: Nt = 1501                                   ! Nombre d'échantillons temps
+      INTEGER, PARAMETER :: Nt = 1001                                   ! Nombre d'échantillons temps
       INTEGER, PARAMETER :: Nx = 6                                    ! Nombre d'échantillons espace suivant x
       INTEGER, PARAMETER :: Ny = 6                                    ! Nombre d'échantillons espace suivant y
       INTEGER, PARAMETER :: i_src = 250                                 ! Injection de la source suivant l'axe x
