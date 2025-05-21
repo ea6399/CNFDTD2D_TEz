@@ -35,7 +35,7 @@ MODULE fdtd
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                   ) )       
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                   ) )  
-            ALLOCATE(cn%B   (                      0 : 3 * Nx + 2             ) )
+            ALLOCATE(cn%B   (         0 : 3 * Nx + 2 , 0 : 3 * Ny + 2         ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                   ) ) 
             ALLOCATE(cn%A   (         0 : 3 * Nx + 2 , 0: 3 * Ny + 2          ) )
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                   ) )
@@ -63,7 +63,9 @@ MODULE fdtd
             cn%a1 = cn%dt / (2.d0 * epsilon_0) 
             cn%a2 = cn%dt / (2.d0 * mu_0)
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a1 = ', cn%a1
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'a1/dx = ', cn%a1 / cn%dx
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a2 = ', cn%a2
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'a2/dx = ', cn%a2 / cn%dx
 
             ! Initialisation des champs
             cn%A = 0.d0
@@ -81,6 +83,7 @@ MODULE fdtd
             CLASS(cnfdtd), INTENT(inout) :: cn
             ! Variables locales
             INTEGER :: info
+            INTEGER :: ipiv(0:3*Nx+2)
             INTEGER :: n, m
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1,i2,j2
@@ -189,11 +192,31 @@ MODULE fdtd
             cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
             cn%A(i2  :i2 + Nx, j2  :j2 + Ny)   = A3
 
+            ! Affichage de la matrice A
+            WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            DO i = 0, 3 * Nx + 2
+                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            END DO
+            ! !---------------------------------------------------!
+
+
+
+
+            ! -------------------------------------------------------------!
+            ! ------------------ Décomposition LU de A --------------------!
+            ! -------------------------------------------------------------!
+
+            CALL DGETRF('N',size(cn%A,1),size(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
+            IF (info /= 0) THEN
+                  WRITE(*, '(/, T5, A, /)') "Erreur de la décomposition LU"
+                  STOP
+            END IF
+
             ! ! Affichage de la matrice A
-            ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
-            ! DO i = 0, 3 * Nx + 2
-            !       WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
-            ! END DO
+            WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            DO i = 0, 3 * Nx + 2
+                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            END DO
             ! ! !---------------------------------------------------!
 
 
@@ -201,8 +224,8 @@ MODULE fdtd
 
 
             ! Ouverture du fichier de sortie
-            OPEN(idfile , file = "data/E.txt", status = "replace", action = "write", form = "formatted")
-            OPEN(idfile + 1 , file = "data/H.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(idfile , file = "data/Ex.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(idfile + 1 , file = "data/Hz.txt", status = "replace", action = "write", form = "formatted")
             
             !-------------------------------------------------------------!
             !------------------- Boucle temporelle -----------------------!
@@ -211,6 +234,8 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
             snapshot = 5
             DO n = 0, Nt - 1
+
+                  m = m + 1
 
                   IF (MOD(n,20*snapshot) == 0) THEN
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
@@ -221,13 +246,13 @@ MODULE fdtd
                   !-------------------------------------------------------------!
                   DO i = 0, Nx 
                         DO j =1, Ny-1
-                              cn%B(i) = cn%Ex(i,j) + cn%a1 /cn%dy * (cn%Hz(i,j+1) - cn%Hz(i,j-1))
+                              cn%B(i,j) = cn%Ex(i,j) + cn%a1 /cn%dy * (cn%Hz(i,j+1) - cn%Hz(i,j-1))
                         END DO
                   END DO
 
                   DO j = 0, Ny
                         DO i = 1, Nx-1
-                              cn%B(j + Nx + 1) = cn%Ey(i,j) - cn%a1 /cn%dx * (cn%Hz(i+1,j) - cn%Hz(i-1,j))
+                              cn%B(i + Nx j + Nx + 1) = cn%Ey(i,j) - cn%a1 /cn%dx * (cn%Hz(i+1,j) - cn%Hz(i-1,j))
                         END DO
                   END DO
 
@@ -238,6 +263,12 @@ MODULE fdtd
                         END DO
                   END DO
 
+                  CALL DGETRS('N',size(cn%A,1),1,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%A,1),info)
+
+
+                  ! Sauvegarde des champs
+
+
                   ! ! Affichage du vecteur B
                   ! if (n == Nt - 1) then
                   !       WRITE(*, '(/, T5, A, /)') "Vecteur B :"
@@ -245,6 +276,15 @@ MODULE fdtd
                   !             WRITE(*, '(I5,500F12.5)') i, cn%B(i)
                   !       END DO
                   ! END IF
+
+                  ! Ecriture dans le fichier 
+                  IF (MOD(n,snapshot) == 0) THEN
+                        WRITE(idfile + 1, *) cn%Hz
+                        WRITE(idfile    , *) cn%Ex
+                  END IF
+                  ! ! !---------------------------------------------------!
+
+
 
                   
                   
