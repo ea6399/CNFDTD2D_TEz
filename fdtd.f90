@@ -125,11 +125,11 @@ MODULE fdtd
                   A1(Nx, Nx - 1) = cn%a1 / cn%dy
                   A1(Nx, Nx) = 1.0d0
 
-            ! Affichage de la matrice A1
-            WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i, A1(i,:)
-            END DO
+            ! ! Affichage de la matrice A1
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i, A1(i,:)
+            ! END DO
             
 
 
@@ -150,11 +150,11 @@ MODULE fdtd
                   A2(Nx, Nx) = 1.0d0
 
 
-            ! Affichage de la matrice A2
-            WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i + Nx + 1, A2(i,:)
-            END DO
+            ! ! Affichage de la matrice A2
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i + Nx + 1, A2(i,:)
+            ! END DO
 
 
 
@@ -187,11 +187,11 @@ MODULE fdtd
                   A3(Nx, Nx - 1) =   cn%a2 / cn%dx
                   A3(Nx - 1, Nx) = - cn%a2 / cn%dy
 
-            ! Affichage de la matrice A3
-            WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.5)') i + 2 * (Nx + 1), A3(i,:)
-            END DO
+            ! ! Affichage de la matrice A3
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.5)') i + 2 * (Nx + 1), A3(i,:)
+            ! END DO
             
              
             !---------------------------------------------------------------!
@@ -303,19 +303,6 @@ MODULE fdtd
                   cn%Ex = cn%B( 0:Nx      ,       0:Ny)
                   cn%Ey = cn%B( i1:i1 + Nx, j1:j1 + Ny)
                   cn%Hz = cn%B( i2:i2 + Nx, j2:j2 + Ny)
-
-
-
-                  ! Sauvegarde des champs
-
-
-                  ! ! Affichage du vecteur B
-                  ! if (n == Nt - 1) then
-                  !       WRITE(*, '(/, T5, A, /)') "Vecteur B :"
-                  !       DO i = 0, 3 * Nx + 2
-                  !             WRITE(*, '(I5,500F12.5)') i, cn%B(i)
-                  !       END DO
-                  ! END IF
 
                   ! Ecriture dans le fichier 
                   IF (MOD(n,snapshot) == 0) THEN
