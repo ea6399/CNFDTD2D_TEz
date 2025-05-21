@@ -13,7 +13,7 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
                   REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
-                  REAL(8), ALLOCATABLE :: B(:)
+                  REAL(8), ALLOCATABLE :: B(:,:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
                   REAL(8) :: a1, a2
@@ -84,21 +84,26 @@ MODULE fdtd
             ! Variables locales
             INTEGER :: info
             INTEGER :: ipiv(0:3*Nx+2)
-            INTEGER :: n, m
+            INTEGER :: n, m, nrhs
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1,i2,j2
             INTEGER :: snapshot
-            REAL(8) :: A1(0:Nx, 0:Ny)
-            REAL(8) :: A2(0:Nx, 0:Ny)
-            REAL(8) :: A3(0:Nx, 0:Ny)
+            REAL(8), ALLOCATABLE :: A1(:,:)
+            REAL(8), ALLOCATABLE :: A2(:,:)
+            REAL(8), ALLOCATABLE :: A3(:,:)
+
+            ALLOCATE(A1(0:Nx, 0:Ny))
+            ALLOCATE(A2(0:Nx, 0:Ny))
+            ALLOCATE(A3(0:Nx, 0:Ny))
 
             A1 = 0.d0; A2 = 0.d0; A3 = 0.d0
 
             WRITE (*, '(/,T5,A,I5)') "Nx = ", Nx
-            WRITE(*,'(/, T5, A, I3X, I3)') "shape(A) = ", shape(cn%A)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ", shape(cn%A)
 
 
             m = 0       
+            
 
 
             !-------------------------------------------------------------!
@@ -111,10 +116,10 @@ MODULE fdtd
                   A1(0,0) = 1.0d0
                   A1(0,1) = - cn%a1 / cn%dy
 
-                  DO i = 1, Nx - 1
-                        A1(i,i-1) = cn%a1 / cn%dy
-                        A1(i,i) = 1.0d0
-                        A1(i,i+1) = - cn%a1 / cn%dy
+                  DO j = 1, Nx - 1
+                        A1(j,j-1) = cn%a1 / cn%dy
+                        A1(j,j) = 1.0d0
+                        A1(j,j+1) = - cn%a1 / cn%dy
                   END DO
 
                   A1(Nx, Nx - 1) = cn%a1 / cn%dy
@@ -132,8 +137,18 @@ MODULE fdtd
             !---------------------------------------------------!
             !------------------ Sous matrice 2 -----------------!
             !---------------------------------------------------!     
-                  
-                  A2 = A1
+                  A1(0,0) = 1.0d0
+                  A1(0,1) = -cn%a1 / cn%dx
+
+                  DO i = 1, Nx - 1
+                        A1(i,i-1) = -cn%a1 / cn%dy
+                        A1(i,i) = 1.0d0
+                        A1(i,i+1) =  cn%a1 / cn%dy
+                  END DO
+
+                  A1(Nx, Nx - 1) = -cn%a1 / cn%dy
+                  A1(Nx, Nx) = 1.0d0
+
 
             ! ! Affichage de la matrice A2
             ! WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
@@ -150,16 +165,16 @@ MODULE fdtd
 
                   A3(0,0) = 1.d0
                   A3(0,1) = - cn%a2 / cn%dx
-                  A3(1,0) = - cn%a2 / cn%dy
+                  A3(1,0) =   cn%a2 / cn%dy
                   A3(1,1) = 0.d0
 
                   DO i = 3, Nx-3, 3
                         j = i
                         A3(i-1 ,j-1) = 0.d0
-                        A3(i-1 ,j)   = cn%a2/cn%dx 
+                        A3(i-1 ,j)   = - cn%a2/cn%dx 
                         A3(i-1 ,j+1) = 0.d0
 
-                        A3(i,j-1)   = - cn%a2/cn%dy
+                        A3(i,j-1)   = cn%a2/cn%dy
                         A3(i,j)     = 1.d0
                         A3(i,j+1)   = - cn%a2/cn%dx
 
@@ -169,8 +184,8 @@ MODULE fdtd
                   END DO
 
                   A3(Nx, Nx) = 1.d0
-                  A3(Nx, Nx - 1) = - cn%a2 / cn%dx
-                  A3(Nx - 1, Nx) =   cn%a2 / cn%dy
+                  A3(Nx, Nx - 1) =   cn%a2 / cn%dx
+                  A3(Nx - 1, Nx) = - cn%a2 / cn%dy
 
             ! ! Affichage de la matrice A3
             ! WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
@@ -192,12 +207,24 @@ MODULE fdtd
             cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
             cn%A(i2  :i2 + Nx, j2  :j2 + Ny)   = A3
 
-            ! Affichage de la matrice A
-            WRITE(*, '(/, T5, A, /)') "Matrice A :"
-            DO i = 0, 3 * Nx + 2
-                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
-            END DO
+            ! ! Affichage de la matrice A
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            ! DO i = 0, 3 * Nx + 2
+            !       WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            ! END DO
             ! !---------------------------------------------------!
+
+            ! Libération de mémoire 
+            IF (ALLOCATED(A1)) THEN
+                  DEALLOCATE(A1)
+            END IF
+            IF (ALLOCATED(A2)) THEN
+                  DEALLOCATE(A2)
+            END IF
+            IF (ALLOCATED(A3)) THEN
+                  DEALLOCATE(A3)
+            END IF
+            ! ! !---------------------------------------------------!
 
 
 
@@ -206,17 +233,19 @@ MODULE fdtd
             ! ------------------ Décomposition LU de A --------------------!
             ! -------------------------------------------------------------!
 
-            CALL DGETRF('N',size(cn%A,1),size(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
+            CALL DGETRF(size(cn%A,1),size(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
             IF (info /= 0) THEN
-                  WRITE(*, '(/, T5, A, /)') "Erreur de la décomposition LU"
-                  STOP
+                  WRITE(*,*) ' DGETRF failed: U(',info,',',info,') is zero or matrix singular'
+                  WRITE(*,'(A,I0)') 'Pivot row : ', info
+                  WRITE(*,'(502(1X,F12.5))') cn%A(info,1:n)
+                  STOP 'LU décomposition error'
             END IF
 
-            ! ! Affichage de la matrice A
-            WRITE(*, '(/, T5, A, /)') "Matrice A :"
-            DO i = 0, 3 * Nx + 2
-                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
-            END DO
+            ! ! ! Affichage de la matrice A
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            ! DO i = 0, 3 * Nx + 2
+            !       WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            ! END DO
             ! ! !---------------------------------------------------!
 
 
@@ -233,6 +262,8 @@ MODULE fdtd
             WRITE(*, '(/, T5, "Injection de la source en ", I5)') i_src
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
             snapshot = 5
+
+            nrhs = size(cn%B,2)
             DO n = 0, Nt - 1
 
                   m = m + 1
@@ -252,18 +283,19 @@ MODULE fdtd
 
                   DO j = 0, Ny
                         DO i = 1, Nx-1
-                              cn%B(i + Nx j + Nx + 1) = cn%Ey(i,j) - cn%a1 /cn%dx * (cn%Hz(i+1,j) - cn%Hz(i-1,j))
+                              cn%B(i + i1, j + j1) = cn%Ey(i,j) - cn%a1 /cn%dx * (cn%Hz(i+1,j) - cn%Hz(i-1,j))
                         END DO
                   END DO
 
                   DO i = 1, Nx - 1
                         DO j = 1, Ny - 1
-                              cn%B(i + 2*(Nx + 1)) = cn%Hz(i,j) - cn%a2 / cn%dy * (cn%Ex(i,j+1) - cn%Ex(i,j-1)) &
+                              cn%B(i + i2, j + j2) = cn%Hz(i,j) - cn%a2 / cn%dy * (cn%Ex(i,j+1) - cn%Ex(i,j-1)) &
                                                                 + cn%a2 / cn%dx * (cn%Ey(i+1,j) - cn%Ey(i-1,j))
                         END DO
                   END DO
 
-                  CALL DGETRS('N',size(cn%A,1),1,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%A,1),info)
+                  CALL DGETRS('N',size(cn%A,1),nrhs,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%B,1),info)
+
 
 
                   ! Sauvegarde des champs
