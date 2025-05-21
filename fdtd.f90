@@ -234,11 +234,14 @@ MODULE fdtd
             ! -------------------------------------------------------------!
 
             CALL DGETRF(size(cn%A,1),size(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
-            IF (info > 0) THEN
-                  WRITE(*,'(/,T5,A,I0,A,I0,A,/)') 'A(',info,',',info,') is exactly zero. '
-            ELSE
-                  WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
-            END IF
+            IF (info /= 0 ) THEN
+                  IF (info > 0) THEN
+                        WRITE(*,'(/,T5,A,I0,A,I0,A,/)') 'A(',info,',',info,') is exactly zero. '
+                  ELSE
+                        WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
+                  END IF
+                  WRITE(*,'(/,A,I5,/,501(1X,F12.5))') 'Pivot row  ', info, cn%A(info,:)
+            ENDIF
             STOP 'LU decomposition error'
 
 
