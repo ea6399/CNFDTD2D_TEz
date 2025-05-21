@@ -83,7 +83,7 @@ MODULE fdtd
             CLASS(cnfdtd), INTENT(inout) :: cn
             ! Variables locales
             INTEGER :: info
-            INTEGER :: ipiv(0:3*Nx+2)
+            INTEGER :: ipiv(1:3*(Nx+1))
             INTEGER :: n, m, nrhs
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1,i2,j2
@@ -239,7 +239,7 @@ MODULE fdtd
             ELSE
                   WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
             END IF
-            !STOP 'LU decomposition error'
+            STOP 'LU decomposition error'
 
 
             ! ! ! Affichage de la matrice A
