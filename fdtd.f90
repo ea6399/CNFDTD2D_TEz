@@ -239,7 +239,7 @@ MODULE fdtd
             ELSE
                   WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
             END IF
-            STOP 'LU decomposition error'
+            !STOP 'LU decomposition error'
 
 
             ! ! ! Affichage de la matrice A
@@ -273,6 +273,8 @@ MODULE fdtd
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
                   END IF
 
+                  cn%Hz(i_src,j_src) =  Esrc(n)
+
                   !-------------------------------------------------------------!
                   !------------------- Ecriture du vecteur B -------------------!
                   !-------------------------------------------------------------!
@@ -296,6 +298,11 @@ MODULE fdtd
                   END DO
 
                   CALL DGETRS('N',size(cn%A,1),nrhs,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%B,1),info)
+
+                  ! Sauvegarde des champs 
+                  cn%Ex = cn%B( 0:Nx      ,       0:Ny)
+                  cn%Ey = cn%B( i1:i1 + Nx, j1:j1 + Ny)
+                  cn%Hz = cn%B( i2:i2 + Nx, j2:j2 + Ny)
 
 
 
