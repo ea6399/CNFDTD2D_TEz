@@ -198,14 +198,15 @@ MODULE fdtd
             i1 = Nx + 1;   j1 = Ny + 1
             i2 = 2*(Nx+1); j2 = 2*(Ny+1)
 
+            print*, i0, i0 + Nx
+            print*, i1, i1 + Nx
+            print*, i2, i2 + Nx
+
             ! Collage des blocs
             cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = A1
             cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
             cn%A(i2  :i2 + Nx, j2  :j2 + Ny)   = A3
 
-            print*, i0, i0 + Nx
-            print*, i1, i1 + Nx
-            print*, i2, i2 + Nx
 
             ! ! Affichage de la matrice A
             ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
