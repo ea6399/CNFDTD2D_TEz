@@ -13,8 +13,8 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
                   REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
-                  REAL(8), ALLOCATABLE :: B(:)
-                  REAL(8), ALLOCATABLE :: J(:)
+                  REAL(8), ALLOCATABLE :: B(:,:)
+                  REAL(8), ALLOCATABLE :: J(:,:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
                   REAL(8) :: a1, a2, bx, by
@@ -36,8 +36,8 @@ MODULE fdtd
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                        ) )       
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                        ) )  
-            ALLOCATE(cn%B   (                      0 : 2 * (Nx + 1) - 1            ) )
-            ALLOCATE(cn%J   (                      0 : 2 * (Nx + 1) - 1            ) )
+            ALLOCATE(cn%B   (    0 : 2 * (Nx + 1) - 1,  0 : Ny         ) )
+            ALLOCATE(cn%J   (    0 : Nx              ,  0 : Ny         ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                        ) ) 
             ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1         ) )
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                        ) )
@@ -134,11 +134,11 @@ MODULE fdtd
                   A1(Nx, Nx - 1) = - cn%bx**2
                   A1(Nx, Nx)     = 1.0d0 + 2.d0 * cn%bx**2
 
-            ! Affichage de la matrice A1
-            WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i, A1(i,:)
-            END DO
+            ! ! Affichage de la matrice A1
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i, A1(i,:)
+            ! END DO
             
 
 
@@ -159,11 +159,11 @@ MODULE fdtd
                   A2(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
 
 
-            ! Affichage de la matrice A2
-            WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i + Nx + 1, A2(i,:)
-            END DO
+            ! ! Affichage de la matrice A2
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A2 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i + Nx + 1, A2(i,:)
+            ! END DO
 
 
 
@@ -184,11 +184,11 @@ MODULE fdtd
 
                   A3 = cn%bx * cn%by * A3
 
-            ! Affichage de la matrice A3
-            WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i + 2 * (Nx + 1), A3(i,:)
-            END DO
+            ! ! Affichage de la matrice A3
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i + 2 * (Nx + 1), A3(i,:)
+            ! END DO
 
             !----------------------------------------------------!
             !------------------ Sous matrice A4 -----------------!
@@ -196,11 +196,11 @@ MODULE fdtd
 
                   A4 = transpose(A3)
 
-            ! Affichage de la matrice A4
-            WRITE(*, '(/, T5, A, /)') "Matrice A4 :"
-            DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.2)') i + 3 * (Nx + 1), A4(i,:)
-            END DO
+            ! ! Affichage de la matrice A4
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A4 :"
+            ! DO i = 0, Nx
+            !       WRITE(*, '(I5,500F12.2)') i + 3 * (Nx + 1), A4(i,:)
+            ! END DO
             ! ! !---------------------------------------------------!
 
                   
@@ -230,12 +230,12 @@ MODULE fdtd
             ! Shape A
             WRITE(*, '(/, T5, A, I5, I5)') "Shape de la matrice A : ", size(cn%A,1), size(cn%A,2)
 
-            ! Affichage de la matrice A
-            WRITE(*, '(/, T5, A, /)') "Matrice A :"
-            DO i = 0, 2 * Nx + 1
-                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
-            END DO
-            !---------------------------------------------------!
+            ! ! Affichage de la matrice A
+            ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            ! DO i = 0, 2 * Nx + 1
+            !       WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            ! END DO
+            ! !---------------------------------------------------!
 
             ! Vérification de la symétrie de la matrice A
             CALL matrix_sym(cn%A)
@@ -256,17 +256,17 @@ MODULE fdtd
 
 
 
-            ! -------------------------------------------------------------!
-            ! ------------------ Décomposition LU de A --------------------!
-            ! -------------------------------------------------------------!
+            ! -------------------------------------------------------------------!
+            ! ------------------ Décomposition Cholesky de A --------------------!
+            ! -------------------------------------------------------------------!
 
-            CALL DGETRF(size(cn%A,1),size(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
+            CALL DPOTRF('L',size(cn%A,1),cn%A, size(cn%A,1), info)
             IF (info > 0) THEN
-                  WRITE(*,'(/,T5,A,I0,A,I0,A,/)') 'A(',info,',',info,') is exactly zero. '
+                  WRITE(*,'(/,T5,A,I0,A,/)') ' the leading proincipal minor of order ', info, 'is not positive.'
             ELSE
                   WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
             END IF
-            STOP 'LU decomposition error'
+            STOP 'Cholesky decomposition error'
 
 
             ! ! Affichage de la matrice A
@@ -291,7 +291,7 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
             snapshot = 5
 
-            nrhs = 1
+            nrhs = Ny + 1
             DO n = 0, Nt - 1
 
                   m = m + 1
@@ -300,19 +300,19 @@ MODULE fdtd
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
                   END IF
 
-                  cn%J(i_src) =  Esrc(n)
+                  cn%J(i_src, j_src) =  Esrc(n)
 
                   !-------------------------------------------------------------!
                   !------------------- Ecriture du vecteur B -------------------!
                   !-------------------------------------------------------------!
                   ! On enregistre les résultats du temps précédent
-                  cn%Ex = cn%B(0 : Nx)
-                  cn%Ey = cn%B(Nx + 1 : Nx + 1 + Nx)
+                  cn%Ex = cn%B(0 : Nx, 0 : Ny)
+                  cn%Ey = cn%B(Nx + 1 : Nx + 1 + Nx, 0 : Ny)
 
                   ! Second membre Ex
                   DO i = 0, Nx
                         DO j = 0, Ny
-                              B(i) =      (1.d0 - 2.d0 * cn%bx**2)*cn%Ex(i,j)                          & 
+                              cn%B(i,j) =      (1.d0 - 2.d0 * cn%bx**2)*cn%Ex(i,j)                          & 
                                           + cn%bx**2 * ( cn%Ex(i, j-1) + cn%Ex(i, j + 1) )             &
                                           - cn%bx*cn%by * ( cn%Ey(i + 1, j)    - cn%Ey(i, j  ) )       &
                                           - cn%bx*cn%by * ( cn%Ey(i+ 1 , j -1) - cn%Ey(i, j-1) )    
@@ -322,7 +322,7 @@ MODULE fdtd
                   ! Second memebre Ey
                   DO i = i1, i1 + Nx
                         DO j = 0,  Ny
-                              B(i) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                           & 
+                              cn%B(i,j) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                           & 
                                           + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )         &
                                           + cn%bx*cn%by * ( cn%Ex(i  , j + 1) - cn%Ex(i , j)  )         &
                                           - cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )
@@ -333,15 +333,15 @@ MODULE fdtd
                   cn%B = cn%B + cn%J
 
                   ! Résolution du système linéaire
-                  CALL DGETRS('N',size(cn%A,1),nrhs,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%B,1),info)
+                  CALL DPOTRS('L',size(cn%A,1),nrhs,cn%A,size(cn%A,1),cn%B,size(cn%B,1),info)
 
 
                   ! Mise à jour explicite de Hz
                   DO i = 0, Nx
                         DO j = 0, Ny
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%B(i,j + 1) - cn%B(i,j) &
-                                                                        + cn%Ex(i, j+ 1) - cn%Ex(i,j) ) &
-                                                      - cn%a2 / cn%dx * ( cn%B(i + 1,j) - cn%B(i,j) &
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%B(i,j + 1) - cn%B(i,j)         &
+                                                                        + cn%Ex(i, j+ 1) - cn%Ex(i,j) )     &
+                                                      - cn%a2 / cn%dx * ( cn%B(i + 1,j) - cn%B(i,j)         &
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i,j) )
                         END DO
                   END DO
@@ -422,7 +422,7 @@ MODULE fdtd
 
             DO i = 1, size(A,1)
                   DO j = 1, size(A,2)
-                        IF (abs(A(i,j) -  A(j,i)) < eps ) THEN
+                        IF (abs(A(i,j) -  A(j,i)) > eps ) THEN
                               is_symmetric = .FALSE.
                               EXIT
                         END IF
