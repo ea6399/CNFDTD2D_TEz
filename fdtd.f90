@@ -16,7 +16,7 @@ MODULE fdtd
                   REAL(8), ALLOCATABLE :: B(:,:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
-                  REAL(8) :: a1, a2
+                  REAL(8) :: a1, a2, bx, by
             CONTAINS
                   ! Méthodes
                   PROCEDURE :: init
@@ -35,9 +35,9 @@ MODULE fdtd
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                   ) )       
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                   ) )  
-            ALLOCATE(cn%B   (   0 : 3 * (Nx + 1) - 1 , 0 : 3 * (Ny + 1) - 1   ) )
+            ALLOCATE(cn%B   (   0 : 2 * (Nx + 1) - 1 , 0 : 2 * (Ny + 1) - 1   ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                   ) ) 
-            ALLOCATE(cn%A   (   0 : 3 * (Nx + 1) - 1 , 0: 3 * (Ny + 1) - 1    ) )
+            ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1    ) )
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                   ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                   ) )
 
@@ -62,6 +62,10 @@ MODULE fdtd
 
             cn%a1 = cn%dt / (2.d0 * epsilon_0) 
             cn%a2 = cn%dt / (2.d0 * mu_0)
+            cn%bx = c * cn%dt / (2.d0 * cn%dx)
+            cn%by = c * cn%dt / (2.d0 * cn%dy)
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'bx = ',cn%bx
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'by = ',cn%by
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a1 = ', cn%a1
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a1/dx = ', cn%a1 / cn%dx
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a2 = ', cn%a2
@@ -91,10 +95,12 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: A1(:,:)
             REAL(8), ALLOCATABLE :: A2(:,:)
             REAL(8), ALLOCATABLE :: A3(:,:)
+            REAL(8), ALLOCATABLE :: A4(:,:)
 
             ALLOCATE(A1(0:Nx, 0:Ny))
             ALLOCATE(A2(0:Nx, 0:Ny))
             ALLOCATE(A3(0:Nx, 0:Ny))
+            ALLOCATE(A4(0:Nx, 0:Ny))
 
             A1 = 0.d0; A2 = 0.d0; A3 = 0.d0
 
@@ -110,20 +116,20 @@ MODULE fdtd
             !------------------ Ecriture de la matrice A -----------------!
             !-------------------------------------------------------------!
 
-            !---------------------------------------------------!
-            !------------------ Sous matrice 1 -----------------!
-            !---------------------------------------------------!
-                  A1(0,0) = 1.0d0
-                  A1(0,1) = - cn%a1 / cn%dy
+            !----------------------------------------------------!
+            !------------------ Sous matrice A1 -----------------!
+            !----------------------------------------------------!
+                  A1(0,0) = 1.0d0 + 2.d0 * cn%bx**2
+                  A1(0,1) = - cn%bx**2 
 
                   DO j = 1, Nx - 1
-                        A1(j,j-1) = cn%a1 / cn%dy
-                        A1(j,j) = 1.0d0
-                        A1(j,j+1) = - cn%a1 / cn%dy
+                        A1(j,j-1) = - cn%bx**2
+                        A1(j,j) = 1.0d0 + 2.d0 * cn%bx**2
+                        A1(j,j+1) = - cn%bx**2
                   END DO
 
-                  A1(Nx, Nx - 1) = cn%a1 / cn%dy
-                  A1(Nx, Nx) = 1.0d0
+                  A1(Nx, Nx - 1) = - cn%bx**2
+                  A1(Nx, Nx)     = 1.0d0 + 2.d0 * cn%bx**2
 
             ! Affichage de la matrice A1
             WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
@@ -134,20 +140,20 @@ MODULE fdtd
 
 
 
-            !---------------------------------------------------!
-            !------------------ Sous matrice 2 -----------------!
-            !---------------------------------------------------!     
-                  A2(0,0) = 1.0d0
-                  A2(0,1) = -cn%a1 / cn%dx
+            !----------------------------------------------------!
+            !------------------ Sous matrice A2 -----------------!
+            !----------------------------------------------------!     
+                  A2(0,0) = 1.0d0 + 2.d0 * cn%by**2
+                  A2(0,1) = - cn%by**2
 
                   DO i = 1, Nx - 1
-                        A2(i,i-1) =   cn%a1 / cn%dy
-                        A2(i,i) = 1.0d0
-                        A2(i,i+1) = - cn%a1 / cn%dy
+                        A2(i,i-1) = - cn%by**2 
+                        A2(i,i)   = 1.0d0 + 2.d0 * cn%by**2
+                        A2(i,i+1) = - cn%by**2
                   END DO
 
-                  A2(Nx, Nx - 1) =  cn%a1 / cn%dy
-                  A2(Nx, Nx) = 1.0d0
+                  A2(Nx, Nx-1) =  - cn%by**2
+                  A2(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
 
 
             ! Affichage de la matrice A2
@@ -159,61 +165,78 @@ MODULE fdtd
 
 
 
-            !---------------------------------------------------!
-            !------------------ Sous matrice 3 -----------------!
-            !---------------------------------------------------!
+            !----------------------------------------------------!
+            !------------------ Sous matrice A3 -----------------!
+            !----------------------------------------------------!
 
-                  A3(0,0) = 1.d0
-                  A3(0,1) = - cn%a2 / cn%dx
-                  A3(1,0) =   cn%a2 / cn%dy
-                  A3(1,1) = 0.d0
+                  A3(0,0) = -1.d0
+                  A3(1,0) = 1.d0
+                  A3(1,1) = -1.d0
 
-                  DO i = 3, Nx-2, 3
-                        j = i
-                        A3(i-1 ,j)   = - cn%a2/cn%dx 
+                  DO i = 2, Nx
+                        A3(i , i-2) = -1.d0
+                        A3(i , i-1) =  1.d0
+                        A3(i , i  )   = -1.d0
+                  END DO 
 
-                        A3(i,j-1)   = cn%a2/cn%dy
-                        A3(i,j)     = 1.d0
-                        A3(i,j+1)   = - cn%a2/cn%dx
-
-                        A3(i+1,j)   = cn%a2/cn%dx
-                  END DO
-
-                  A3(Nx, Nx) = 1.d0
-                  A3(Nx, Nx - 1) =   cn%a2 / cn%dx
-                  A3(Nx - 1, Nx) = - cn%a2 / cn%dy
+                  A3 = cn%bx * cn%by * A3
 
             ! Affichage de la matrice A3
             WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
             DO i = 0, Nx
-                  WRITE(*, '(I5,500F12.5)') i + 2 * (Nx + 1), A3(i,:)
+                  WRITE(*, '(I5,500F12.2)') i + 2 * (Nx + 1), A3(i,:)
             END DO
+
+            !----------------------------------------------------!
+            !------------------ Sous matrice A4 -----------------!
+            !----------------------------------------------------!
+
+                  A4 = transpose(A3)
+
+            ! Affichage de la matrice A4
+            WRITE(*, '(/, T5, A, /)') "Matrice A4 :"
+            DO i = 0, Nx
+                  WRITE(*, '(I5,500F12.2)') i + 3 * (Nx + 1), A4(i,:)
+            END DO
+            ! ! !---------------------------------------------------!
+
+                  
             
              
             !---------------------------------------------------------------!
             !------------------ Assemblage de la matrice A -----------------!
             !---------------------------------------------------------------!
 
+
+            ! Détermine les indices de collage
             i0 = 0;        j0 = 0
             i1 = Nx + 1;   j1 = Ny + 1
-            i2 = 2*(Nx+1); j2 = 2*(Ny+1)
+            
 
             print*, i0, i0 + Nx
             print*, i1, i1 + Nx
-            print*, i2, i2 + Nx
 
-            ! Collage des blocs
+            ! Collage des blocs diagonaux
             cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = A1
             cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
-            cn%A(i2  :i2 + Nx, j2  :j2 + Ny)   = A3
+            ! Collage des matrices de couplage
+            cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = A3
+            cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = A4
+           
 
+            ! Shape A
+            WRITE(*, '(/, T5, A, I5, I5)') "Shape de la matrice A : ", size(cn%A,1), size(cn%A,2)
 
-            ! ! Affichage de la matrice A
-            ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
-            ! DO i = 0, 3 * Nx + 2
-            !       WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
-            ! END DO
-            ! !---------------------------------------------------!
+            ! Affichage de la matrice A
+            WRITE(*, '(/, T5, A, /)') "Matrice A :"
+            DO i = 0, 2 * Nx + 1
+                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            END DO
+            !---------------------------------------------------!
+
+            ! Vérification de la symétrie de la matrice A
+            CALL matrix_sym(cn%A)
+            ! ! !---------------------------------------------------!
 
             ! Libération de mémoire 
             IF (ALLOCATED(A1)) THEN
@@ -300,6 +323,17 @@ MODULE fdtd
 
                   CALL DGETRS('N',size(cn%A,1),nrhs,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%B,1),info)
 
+
+                  ! Mise à jour explicite de Hz
+                  DO i = 0, Nx
+                        DO j = 0, Ny
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%B(i,j + 1) - cn%B(i,j) &
+                                                                        + cn%Ex(i, j+ 1) - cn%Ex(i,j) ) &
+                                                      - cn%a2 / cn%dx * ( cn%B(i + 1,j) - cn%B(i,j) &
+                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
+                        END DO
+                  END DO
+
                   ! Sauvegarde des champs 
                   cn%Ex = cn%B( 0:Nx      ,       0:Ny)
                   cn%Ey = cn%B( i1:i1 + Nx, j1:j1 + Ny)
@@ -365,6 +399,29 @@ MODULE fdtd
             END IF
 
       END SUBROUTINE freememory
+
+
+      SUBROUTINE matrix_sym(A)
+            REAL(8), INTENT(in) :: A(:,:)
+            INTEGER :: i,j
+            LOGICAL :: is_symmetric
+
+            is_symmetric = .TRUE.
+
+            DO i = 1, size(A,1)
+                  DO j = 1, size(A,2)
+                        IF (A(i,j) /= A(j,i)) THEN
+                              is_symmetric = .FALSE.
+                              EXIT
+                        END IF
+                  END DO
+            END DO
+            IF (is_symmetric) THEN
+                  WRITE(*, '(/, T5, A, /)') "La matrice A est symétrique."
+            ELSE
+                  WRITE(*, '(/, T5, A, /)') "La matrice A n'est pas symétrique."
+            END IF
+      ENDSUBROUTINE matrix_sym
 
 
 END MODULE fdtd
