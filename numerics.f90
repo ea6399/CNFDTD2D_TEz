@@ -19,9 +19,9 @@ MODULE numerics
 
       ! Global Parameters
       INTEGER, PARAMETER :: Nt = 1001                                   ! Nombre d'échantillons temps
-      INTEGER, PARAMETER :: Nx = 5                                    ! Nombre d'échantillons espace suivant x
+      INTEGER, PARAMETER :: Nx = 500                                    ! Nombre d'échantillons espace suivant x
       INTEGER, PARAMETER :: Ny = Nx                                    ! Nombre d'échantillons espace suivant y
-      INTEGER, PARAMETER :: i_src = int(Nx / 2)                                 ! Injection de la source suivant l'axe x
+      INTEGER, PARAMETER :: i_src = int(Nx / 2) + 1                    ! Injection de la source suivant l'axe x
       INTEGER, PARAMETER :: j_src = i_src                                 ! Injection de la source suivant l'axe y
       INTEGER, PARAMETER :: idfile = 50                                 ! idfile
 

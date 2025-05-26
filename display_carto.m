@@ -1,11 +1,12 @@
 %% Afficahge de la cartographie au temps n
 
 % Paramètres
-Nx = 501;
+Nx = 500;
 Ny = Nx;
 Nt = 1001;
-snapshot = 5;
+snapshot = 20;
 n_block = (Nt - 1) / snapshot;
+fprintf('Nombre de block : %d', n_block);
 
 
 M_inter = load("data/Hz.txt");

@@ -90,10 +90,9 @@ MODULE fdtd
             CLASS(cnfdtd), INTENT(inout) :: cn
             ! Variables locales
             INTEGER :: info
-            INTEGER :: ipiv(1:3*(Nx+1))
             INTEGER :: n, m, nrhs
             INTEGER :: i,j
-            INTEGER :: i0,j0,i1,j1,i2,j2
+            INTEGER :: i0,j0,i1,j1
             INTEGER :: snapshot
             REAL(8), ALLOCATABLE :: A1(:,:)
             REAL(8), ALLOCATABLE :: A2(:,:)
@@ -105,11 +104,15 @@ MODULE fdtd
             ALLOCATE(A3(0:Nx, 0:Ny))
             ALLOCATE(A4(0:Nx, 0:Ny))
 
-            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0
+            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0
 
             WRITE (*, '(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ", shape(cn%A)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(B) = ", shape(cn%B)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = ", shape(cn%Ex)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = ", shape(cn%Ey)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = ", shape(cn%Hz)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = ", shape(cn%J)
 
             m = 0       
             
@@ -123,12 +126,12 @@ MODULE fdtd
             !------------------ Sous matrice A1 -----------------!
             !----------------------------------------------------!
                   A1(0,0) = 1.0d0 + 2.d0 * cn%bx**2
-                  A1(0,1) = - cn%bx**2 
+                  !A1(0,1) = - cn%bx**2 
 
                   DO j = 1, Nx - 1
                         A1(j,j-1) = - cn%bx**2
                         A1(j,j) = 1.0d0 + 2.d0 * cn%bx**2
-                        A1(j,j+1) = - cn%bx**2
+                        !A1(j,j+1) = - cn%bx**2
                   END DO
 
                   A1(Nx, Nx - 1) = - cn%bx**2
@@ -147,12 +150,12 @@ MODULE fdtd
             !------------------ Sous matrice A2 -----------------!
             !----------------------------------------------------!     
                   A2(0,0) = 1.0d0 + 2.d0 * cn%by**2
-                  A2(0,1) = - cn%by**2
+                  !A2(0,1) = - cn%by**2
 
                   DO i = 1, Nx - 1
                         A2(i,i-1) = - cn%by**2 
                         A2(i,i)   = 1.0d0 + 2.d0 * cn%by**2
-                        A2(i,i+1) = - cn%by**2
+                        !A2(i,i+1) = - cn%by**2
                   END DO
 
                   A2(Nx, Nx-1) =  - cn%by**2
@@ -196,6 +199,8 @@ MODULE fdtd
 
                   A4 = transpose(A3)
 
+                  A3 = 0.0d0
+
             ! ! Affichage de la matrice A4
             ! WRITE(*, '(/, T5, A, /)') "Matrice A4 :"
             ! DO i = 0, Nx
@@ -216,8 +221,8 @@ MODULE fdtd
             i1 = Nx + 1;   j1 = Ny + 1
             
 
-            print*, i0, i0 + Nx
-            print*, i1, i1 + Nx
+            WRITE(*, '(/, T5, A, I5, I5)') "i0, j0 = ", i0, j0
+            WRITE(*, '(/, T5, A, I5, I5)') "i1, j1 = ", i1, j1
 
             ! Collage des blocs diagonaux
             cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = A1
@@ -225,10 +230,9 @@ MODULE fdtd
             ! Collage des matrices de couplage
             cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = A3
             cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = A4
-           
 
-            ! Shape A
-            WRITE(*, '(/, T5, A, I5, I5)') "Shape de la matrice A : ", size(cn%A,1), size(cn%A,2)
+
+
 
             ! ! Affichage de la matrice A
             ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
@@ -238,7 +242,7 @@ MODULE fdtd
             ! !---------------------------------------------------!
 
             ! Vérification de la symétrie de la matrice A
-            CALL matrix_sym(cn%A)
+            !CALL matrix_sym(cn%A)
             ! ! !---------------------------------------------------!
 
             ! Libération de mémoire 
@@ -250,6 +254,9 @@ MODULE fdtd
             END IF
             IF (ALLOCATED(A3)) THEN
                   DEALLOCATE(A3)
+            END IF
+            IF (ALLOCATED(A4)) THEN
+                  DEALLOCATE(A4)
             END IF
             ! ! !---------------------------------------------------!
 
@@ -263,19 +270,12 @@ MODULE fdtd
             CALL DPOTRF('L',size(cn%A,1),cn%A, size(cn%A,1), info)
             IF (info > 0) THEN
                   WRITE(*,'(/,T5,A,I0,A,/)') ' the leading proincipal minor of order ', info, 'is not positive.'
-            ELSE
+                  STOP 'Choletsky failed'
+            ELSE IF (info < 0) THEN
                   WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
+                  STOP 'Choletsky failed'
             END IF
-            STOP 'Cholesky decomposition error'
-
-
-            ! ! Affichage de la matrice A
-            WRITE(*, '(/, T5, A, /)') "Matrice A :"
-            DO i = 0, 3 * Nx + 2
-                  WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
-            END DO
-            ! !---------------------------------------------------!
-
+            
 
             
 
@@ -287,74 +287,87 @@ MODULE fdtd
             !-------------------------------------------------------------!
             !------------------- Boucle temporelle -----------------------!
             !-------------------------------------------------------------!
-            WRITE(*, '(/, T5, "Injection de la source en ", I5)') i_src
+            WRITE(*, '(/, T5, "Injection de la source en ", I5)') i_src, j_src
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
-            snapshot = 5
+            snapshot = 20
 
             nrhs = Ny + 1
             DO n = 0, Nt - 1
 
-                  m = m + 1
-
-                  IF (MOD(n,20*snapshot) == 0) THEN
+                  IF (MOD(n,5*snapshot) == 0) THEN
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
                   END IF
 
                   cn%J(i_src, j_src) =  Esrc(n)
+                  
 
                   !-------------------------------------------------------------!
                   !------------------- Ecriture du vecteur B -------------------!
                   !-------------------------------------------------------------!
                   ! On enregistre les résultats du temps précédent
-                  cn%Ex = cn%B(0 : Nx, 0 : Ny)
-                  cn%Ey = cn%B(Nx + 1 : Nx + 1 + Nx, 0 : Ny)
+                  cn%Ex = cn%B(0 : Nx               , 0 : Ny)
+                  cn%Ey = cn%B(Nx + 1 : 2 * Nx + 1  , 0 : Ny)
+
+                  ! Conditions de bord
+                  cn%B(0, :) = 0.d0
+                  cn%B(Nx , :) = 0.d0
+                  cn%B(Nx + 1, :) = 0.d0
+                  cn%B(2 * Nx + 1, :) = 0.d0
+
+                  cn%B(:, 0) = 0.d0
+                  cn%B(:, Ny) = 0.d0
+
 
                   ! Second membre Ex
-                  DO i = 0, Nx
-                        DO j = 0, Ny
-                              cn%B(i,j) =      (1.d0 - 2.d0 * cn%bx**2)*cn%Ex(i,j)                          & 
-                                          + cn%bx**2 * ( cn%Ex(i, j-1) + cn%Ex(i, j + 1) )             &
-                                          - cn%bx*cn%by * ( cn%Ey(i + 1, j)    - cn%Ey(i, j  ) )       &
-                                          - cn%bx*cn%by * ( cn%Ey(i+ 1 , j -1) - cn%Ey(i, j-1) )    
+                  DO i = 1, Nx - 1
+                        DO j = 1, Ny - 1
+                              cn%B(i,j) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                     & 
+                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )             &
+                                          - cn%bx*cn%by * ( cn%Ey(i + 1, j)    - cn%Ey(i, j  ) )         &
+                                          - cn%bx*cn%by * ( cn%Ey(i+ 1 , j -1) - cn%Ey(i, j-1) )         &
+                                          + 2.d0 * cn%a1 * (cn%Hz(i,j+1) - cn%Hz(i, j-1))   
                         END DO
                   END DO
 
-                  ! Second memebre Ey
-                  DO i = i1, i1 + Nx
-                        DO j = 0,  Ny
-                              cn%B(i,j) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                           & 
+                  ! Second membre Ey
+                  DO i = i1 + 1, i1 + Nx - 1
+                        DO j = 1,  Ny - 1
+                              cn%B(i,j) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                      & 
                                           + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )         &
-                                          + cn%bx*cn%by * ( cn%Ex(i  , j + 1) - cn%Ex(i , j)  )         &
-                                          - cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )
+                                          - cn%bx*cn%by * ( cn%Ex(i  , j + 1) - cn%Ex(i , j)  )         &
+                                          - cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )         &
+                                          - 2.d0 * cn%a1 * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
                         END DO
                   END DO
 
-                  ! Injection de la source
-                  cn%B = cn%B + cn%J
+                  
 
                   ! Résolution du système linéaire
                   CALL DPOTRS('L',size(cn%A,1),nrhs,cn%A,size(cn%A,1),cn%B,size(cn%B,1),info)
+
+                  ! Injection de la source
+                  cn%B = cn%B + cn%J
 
 
                   ! Mise à jour explicite de Hz
                   DO i = 0, Nx
                         DO j = 0, Ny
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%B(i,j + 1) - cn%B(i,j)         &
-                                                                        + cn%Ex(i, j+ 1) - cn%Ex(i,j) )     &
-                                                      - cn%a2 / cn%dx * ( cn%B(i + 1,j) - cn%B(i,j)         &
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%B(i,j + 1) - cn%B(i,j)               &
+                                                                        + cn%Ex(i, j+ 1) - cn%Ex(i,j) )           &
+                                                      - cn%a2 / cn%dx * ( cn%B(i1 + i + 1,j) - cn%B(i1 + i,j)     &
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i,j) )
                         END DO
                   END DO
 
-                  ! Sauvegarde des champs 
-                  cn%Ex = cn%B( 0:Nx      ,       0:Ny)
-                  cn%Ey = cn%B( i1:i1 + Nx, j1:j1 + Ny)
-                  cn%Hz = cn%B( i2:i2 + Nx, j2:j2 + Ny)
-
                   ! Ecriture dans le fichier 
                   IF (MOD(n,snapshot) == 0) THEN
-                        WRITE(idfile + 1, *) cn%Hz
-                        WRITE(idfile    , *) cn%Ex
+                        m = m + 1
+                        DO i = 0, Nx, 2
+                              DO j = 0, Ny, 2
+                                    WRITE(idfile + 1, '(F16.13,1X)', advance='no') cn%Hz(i,j)
+                              END DO
+                              WRITE(idfile + 1, *)
+                        END DO     
                   END IF
                   ! ! !---------------------------------------------------!
 
