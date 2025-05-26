@@ -14,6 +14,7 @@ MODULE fdtd
                   REAL(8), ALLOCATABLE :: dx, dy, dt
                   REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
                   REAL(8), ALLOCATABLE :: B(:)
+                  REAL(8), ALLOCATABLE :: J(:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
                   REAL(8) :: a1, a2, bx, by
@@ -36,6 +37,7 @@ MODULE fdtd
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                        ) )       
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                        ) )  
             ALLOCATE(cn%B   (                      0 : 2 * (Nx + 1) - 1            ) )
+            ALLOCATE(cn%J   (                      0 : 2 * (Nx + 1) - 1            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                        ) ) 
             ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1         ) )
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                        ) )
@@ -74,6 +76,7 @@ MODULE fdtd
             ! Initialisation des champs
             cn%A = 0.d0
             cn%B = 0.d0
+            cn%J = 0.d0
             cn%Ex = 0.d0
             cn%Ey = 0.d0
             cn%Hz = 0.d0
@@ -288,56 +291,78 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
             snapshot = 5
 
-            ! nrhs = 1
-            ! DO n = 0, Nt - 1
+            nrhs = 1
+            DO n = 0, Nt - 1
 
-            !       m = m + 1
+                  m = m + 1
 
-            !       IF (MOD(n,20*snapshot) == 0) THEN
-            !             WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
-            !       END IF
+                  IF (MOD(n,20*snapshot) == 0) THEN
+                        WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
+                  END IF
 
-            !       cn%Hz(i_src,j_src) =  Esrc(n)
+                  cn%J(i_src) =  Esrc(n)
 
-            !       !-------------------------------------------------------------!
-            !       !------------------- Ecriture du vecteur B -------------------!
-            !       !-------------------------------------------------------------!
-            !       ! On enregistre les résultats du temps précédent
-            !       cn%Ex = cn%B(0 : Nx)
-            !       cn%Ey = cn%B(Nx + 1 : Nx + 1 + Nx)
+                  !-------------------------------------------------------------!
+                  !------------------- Ecriture du vecteur B -------------------!
+                  !-------------------------------------------------------------!
+                  ! On enregistre les résultats du temps précédent
+                  cn%Ex = cn%B(0 : Nx)
+                  cn%Ey = cn%B(Nx + 1 : Nx + 1 + Nx)
+
+                  ! Second membre Ex
+                  DO i = 0, Nx
+                        DO j = 0, Ny
+                              B(i) =      (1.d0 - 2.d0 * cn%bx**2)*cn%Ex(i,j)                          & 
+                                          + cn%bx**2 * ( cn%Ex(i, j-1) + cn%Ex(i, j + 1) )             &
+                                          - cn%bx*cn%by * ( cn%Ey(i + 1, j)    - cn%Ey(i, j  ) )       &
+                                          - cn%bx*cn%by * ( cn%Ey(i+ 1 , j -1) - cn%Ey(i, j-1) )    
+                        END DO
+                  END DO
+
+                  ! Second memebre Ey
+                  DO i = i1, i1 + Nx
+                        DO j = 0,  Ny
+                              B(i) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                           & 
+                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )         &
+                                          + cn%bx*cn%by * ( cn%Ex(i  , j + 1) - cn%Ex(i , j)  )         &
+                                          - cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )
+                        END DO
+                  END DO
+
+                  ! Injection de la source
+                  cn%B = cn%B + cn%J
+
+                  ! Résolution du système linéaire
+                  CALL DGETRS('N',size(cn%A,1),nrhs,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%B,1),info)
 
 
+                  ! Mise à jour explicite de Hz
+                  DO i = 0, Nx
+                        DO j = 0, Ny
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%B(i,j + 1) - cn%B(i,j) &
+                                                                        + cn%Ex(i, j+ 1) - cn%Ex(i,j) ) &
+                                                      - cn%a2 / cn%dx * ( cn%B(i + 1,j) - cn%B(i,j) &
+                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
+                        END DO
+                  END DO
 
-            !       CALL DGETRS('N',size(cn%A,1),nrhs,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%B,1),info)
+                  ! Sauvegarde des champs 
+                  cn%Ex = cn%B( 0:Nx      ,       0:Ny)
+                  cn%Ey = cn%B( i1:i1 + Nx, j1:j1 + Ny)
+                  cn%Hz = cn%B( i2:i2 + Nx, j2:j2 + Ny)
 
-
-            !       ! Mise à jour explicite de Hz
-            !       DO i = 0, Nx
-            !             DO j = 0, Ny
-            !                   cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%B(i,j + 1) - cn%B(i,j) &
-            !                                                             + cn%Ex(i, j+ 1) - cn%Ex(i,j) ) &
-            !                                           - cn%a2 / cn%dx * ( cn%B(i + 1,j) - cn%B(i,j) &
-            !                                                             + cn%Ey(i + 1, j) - cn%Ey(i,j) )
-            !             END DO
-            !       END DO
-
-            !       ! Sauvegarde des champs 
-            !       cn%Ex = cn%B( 0:Nx      ,       0:Ny)
-            !       cn%Ey = cn%B( i1:i1 + Nx, j1:j1 + Ny)
-            !       cn%Hz = cn%B( i2:i2 + Nx, j2:j2 + Ny)
-
-            !       ! Ecriture dans le fichier 
-            !       IF (MOD(n,snapshot) == 0) THEN
-            !             WRITE(idfile + 1, *) cn%Hz
-            !             WRITE(idfile    , *) cn%Ex
-            !       END IF
-            !       ! ! !---------------------------------------------------!
+                  ! Ecriture dans le fichier 
+                  IF (MOD(n,snapshot) == 0) THEN
+                        WRITE(idfile + 1, *) cn%Hz
+                        WRITE(idfile    , *) cn%Ex
+                  END IF
+                  ! ! !---------------------------------------------------!
 
 
 
                   
                   
-            ! END DO
+            END DO
 
             WRITE(*, '(/, t5, A, I5)') "Nombre de blocs : ", m
             
