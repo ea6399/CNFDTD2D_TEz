@@ -94,7 +94,7 @@ MODULE fdtd
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
             INTEGER :: snapshot
-            !REAL(8) :: idx_Ex, idx_Ey
+            INTEGER :: idx_Ex, idx_Ey
             REAL(8), ALLOCATABLE :: A1(:,:)
             REAL(8), ALLOCATABLE :: A2(:,:)
             REAL(8), ALLOCATABLE :: A3(:,:)
@@ -107,7 +107,7 @@ MODULE fdtd
             ALLOCATE(A4(0:Nx, 0:Ny))
             ALLOCATE(BB(0:2 * Nx + 1, 0:Ny))
 
-            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0
+            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; BB = 0.d0
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ", shape(cn%A)
@@ -296,6 +296,7 @@ MODULE fdtd
             snapshot = 20
 
             nrhs = 1
+            m = 0
             DO n = 0, Nt - 1
 
                   IF (MOD(n,5*snapshot) == 0) THEN
@@ -304,12 +305,9 @@ MODULE fdtd
 
                   cn%J(i_src, j_src) =  Esrc(n)
 
-                  
-                  
-
-                  !-------------------------------------------------------------!
-                  !------------------- Ecriture du vecteur B -------------------!
-                  !-------------------------------------------------------------!
+                  !--------------------------------------------------------------!
+                  !------------------- Ecriture du vecteur B --------------------!
+                  !--------------------------------------------------------------!
                   ! On enregistre les résultats du temps précédent
                   cn%Ex = BB(0 : Nx, 0 : Ny)
                   cn%Ey = BB(i1 : i1 + Nx, 0 : Ny)
@@ -318,34 +316,51 @@ MODULE fdtd
                   ! Conditions de bord
                   cn%B(0)           = 0.d0
                   cn%B(Nx)          = 0.d0
-                  cn%B(Nx + 1)      = 0.d0   
+                  cn%B(Nx + 1)      = 0.d0
                   cn%B(2 * (Nx +1)) = 0.d0   
                   cn%B(i1)          = 0.d0
                   cn%B(i1 + Nx)     = 0.d0
                  
-
+                  
 
                   ! Second membre Ex
-                  DO i = 1,  Nx - 1
-                        DO j = 1, Ny - 1
-                              cn%B(i) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                       & 
-                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )             &
-                                          - cn%bx*cn%by * ( cn%Ey(i + 1, j)    - cn%Ey(i, j  ) )         &
-                                          - cn%bx*cn%by * ( cn%Ey(i+ 1 , j -1) - cn%Ey(i, j-1) )         &
-                                          + 2.d0 * cn%a1 * (cn%Hz(i,j+1) - cn%Hz(i, j-1))   
+                  DO i = 0,  Nx
+                        !print *, "i = ", i
+                        DO j = 0, Ny
+                              ! Détermine le bonne indice
+                              idx_Ex = (i) * (Nx + 1) + (j)
+                              !print *, "idx_Ex = ", idx_Ex
+                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
+                                    cn%B(idx_Ex) = 0.d0
+                              else
+                                    cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                   & 
+                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )             &
+                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j)    - cn%Ey(i, j  ) )         &
+                                                - cn%bx*cn%by * ( cn%Ey(i+ 1 , j -1) - cn%Ey(i, j-1) )         &
+                                                + 2.d0 * cn%a1 * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
+                              endif
                         END DO
                   END DO
 
 
 
                   ! Second membre Ey
-                  DO i = i1 + 1, (i1 + Nx) - 1
-                        DO j = 1,  Ny - 1
-                              cn%B(i) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                        & 
-                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )         &
-                                          - cn%bx*cn%by * ( cn%Ex(i  , j + 1) - cn%Ex(i , j)  )         &
-                                          - cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )         &
-                                          - 2.d0 * cn%a1 * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
+                  DO i = 0 , Nx 
+                        !print *, "i = ", i
+                        DO j = 0,  Ny 
+                              ! Détermine le bonne indice
+                              idx_Ey = (Nx+1)*(Ny+1) + (i) * (Nx + 1) + j
+                              !print *, "idx_Ey = ", idx_Ey
+                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
+                                    cn%B(idx_Ey) = 0.d0
+                              else
+                              ! Calcul du second membre Ey
+                                    cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                   & 
+                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )         &
+                                                - cn%bx*cn%by * ( cn%Ex(i  , j + 1) - cn%Ex(i , j)  )         &
+                                                - cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )         &
+                                                - 2.d0 * cn%a1 * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
+                              END IF
                         END DO
                   END DO
 
@@ -354,8 +369,15 @@ MODULE fdtd
                   ! Résolution du système linéaire
                   CALL DPOTRS('L',size(cn%A,1),nrhs,cn%A,size(cn%A,1),cn%B,size(cn%B,1),info)
 
-                  ! reshape du vecteur B
-                  BB = reshape(cn%B, shape = [2 * Nx + 2, Ny + 1])
+                  ! reshape du vecteur B / order = [2,1] fait varier j avant i
+                  BB = reshape(cn%B, shape = [ 2 * Nx + 2, Ny + 1], order = [2, 1])
+
+                  !  print *, "shape(BB) = ", shape(BB)
+
+                  ! WRITE(*,'(2(AX,F16.10))') 'B(0)=',cn%B(0),' BB(0,0)=',BB(0,0)
+                  ! WRITE(*,'(2(AX,F16.10))') 'B(1)=',cn%B(1),' BB(0,1)=',BB(0,1)
+                  ! WRITE(*,'(2(AX,F16.10))') 'B(Ny+1)=',cn%B(Ny+1),' BB(1,0)=',BB(1,0)
+
                   
 
                   ! Injection de la source
@@ -365,8 +387,8 @@ MODULE fdtd
 
 
                   ! Mise à jour explicite de Hz
-                  DO i = 0, Nx
-                        DO j = 0, Ny
+                  DO i = 0, Nx-1
+                        DO j = 0, Ny-1
                               cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( BB(i,j + 1) - BB(i,j)               &
                                                                         + cn%Ex(i, j+ 1) - cn%Ex(i,j) )       &
                                                       - cn%a2 / cn%dx * ( BB(i1 + i + 1,j) - BB(i1 + i,j)     &
@@ -379,7 +401,7 @@ MODULE fdtd
                         m = m + 1
                         DO i = 0, Nx, 2
                               DO j = 0, Ny, 2
-                                    WRITE(idfile + 1, '(F16.13,1X)', advance='no') cn%Hz(i,j)
+                                    WRITE(idfile + 1, '(F16.10,1X)', advance='no') cn%Hz(i,j)
                               END DO
                               WRITE(idfile + 1, *)
                         END DO     
