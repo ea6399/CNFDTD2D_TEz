@@ -94,6 +94,7 @@ MODULE fdtd
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
             INTEGER :: snapshot
+            !REAL(8) :: idx_Ex, idx_Ey
             REAL(8), ALLOCATABLE :: A1(:,:)
             REAL(8), ALLOCATABLE :: A2(:,:)
             REAL(8), ALLOCATABLE :: A3(:,:)
@@ -315,15 +316,17 @@ MODULE fdtd
 
 
                   ! Conditions de bord
-                  cn%B(0) = 0.d0
-                  cn%B(Nx) = 0.d0
-                  cn%B(i1) = 0.d0
-                  cn%B(i1 + Nx) = 0.d0
+                  cn%B(0)           = 0.d0
+                  cn%B(Nx)          = 0.d0
+                  cn%B(Nx + 1)      = 0.d0   
+                  cn%B(2 * (Nx +1)) = 0.d0   
+                  cn%B(i1)          = 0.d0
+                  cn%B(i1 + Nx)     = 0.d0
                  
 
 
                   ! Second membre Ex
-                  DO i = 1, Nx - 1
+                  DO i = 1,  Nx - 1
                         DO j = 1, Ny - 1
                               cn%B(i) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                       & 
                                           + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )             &
@@ -333,8 +336,10 @@ MODULE fdtd
                         END DO
                   END DO
 
+
+
                   ! Second membre Ey
-                  DO i = i1 + 1, i1 + Nx - 1
+                  DO i = i1 + 1, (i1 + Nx) - 1
                         DO j = 1,  Ny - 1
                               cn%B(i) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                        & 
                                           + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )         &
