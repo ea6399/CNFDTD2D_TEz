@@ -132,14 +132,11 @@ MODULE fdtd
                   A1(0,0) = 1.0d0 + 2.d0 * cn%bx**2
                   !A1(0,1) = - cn%bx**2 
 
-                  DO j = 1, Nx - 1
+                  DO j = 1, Nx
                         A1(j,j-1) = - cn%bx**2
                         A1(j,j) = 1.0d0 + 2.d0 * cn%bx**2
                         !A1(j,j+1) = - cn%bx**2
                   END DO
-
-                  A1(Nx, Nx - 1) = - cn%bx**2
-                  A1(Nx, Nx)     = 1.0d0 + 2.d0 * cn%bx**2
 
             ! ! Affichage de la matrice A1
             ! WRITE(*, '(/, T5, A, /)') "Matrice A1 :"
@@ -179,31 +176,34 @@ MODULE fdtd
             !------------------ Sous matrice A3 -----------------!
             !----------------------------------------------------!
 
-                  A3(0,0) = -1.d0
-                  A3(1,0) = 1.d0
-                  A3(1,1) = -1.d0
+                  A3(0,0) =  1.d0
+                  A3(2,0) = -1.d0
+                  A3(1,1) =  2.d0
 
-                  DO i = 2, Nx
-                        A3(i , i-2) = -1.d0
-                        A3(i , i-1) =  1.d0
-                        A3(i , i  )   = -1.d0
+                  DO i = 1, Nx-2
+                        A3(i , i)   =   2.d0
+                        A3(i+2 , i) =  -1.d0
                   END DO 
+
+                  A3(Nx-1,Nx-1) =  2.d0
+                  A3(Nx, Nx - 2)= -1.d0   
+                  A3(Nx, Nx)    =  1.d0
 
                   A3 = cn%bx * cn%by * A3
 
-            ! ! Affichage de la matrice A3
-            ! WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
-            ! DO i = 0, Nx
-            !       WRITE(*, '(I5,500F12.2)') i + 2 * (Nx + 1), A3(i,:)
-            ! END DO
+            ! Affichage de la matrice A3
+            WRITE(*, '(/, T5, A, /)') "Matrice A3 :"
+            DO i = 0, Nx
+                  WRITE(*, '(I5,500F12.2)') i, A3(i,:)
+            END DO
 
             !----------------------------------------------------!
             !------------------ Sous matrice A4 -----------------!
             !----------------------------------------------------!
 
-                  A4 = transpose(A3)
+                  A4 = -transpose(A3)
 
-                  A3 = 0.0d0
+                  !A3 = 0.0d0
 
             ! ! Affichage de la matrice A4
             ! WRITE(*, '(/, T5, A, /)') "Matrice A4 :"
@@ -241,7 +241,7 @@ MODULE fdtd
             ! ! Affichage de la matrice A
             ! WRITE(*, '(/, T5, A, /)') "Matrice A :"
             ! DO i = 0, 2 * Nx + 1
-            !       WRITE(*, '(I5,500F12.5)') i, cn%A(i,:)
+            !       WRITE(*, '(I5,500F12.2)') i, cn%A(i,:)
             ! END DO
             ! !---------------------------------------------------!
 
