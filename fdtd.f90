@@ -312,14 +312,6 @@ MODULE fdtd
                   cn%Ex = BB(0 : Nx, 0 : Ny)
                   cn%Ey = BB(i1 : i1 + Nx, 0 : Ny)
 
-
-                  ! Conditions de bord
-                  cn%B(0)           = 0.d0
-                  cn%B(Nx)          = 0.d0
-                  cn%B(Nx + 1)      = 0.d0
-                  cn%B(2 * (Nx +1)) = 0.d0   
-                  cn%B(i1)          = 0.d0
-                  cn%B(i1 + Nx)     = 0.d0
                  
                   
 
@@ -333,10 +325,10 @@ MODULE fdtd
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
                                     cn%B(idx_Ex) = 0.d0
                               else
-                                    cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                   & 
-                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )             &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j)    - cn%Ey(i, j  ) )         &
-                                                - cn%bx*cn%by * ( cn%Ey(i+ 1 , j -1) - cn%Ey(i, j-1) )         &
+                                    cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
+                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
+                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j + 1) - cn%Ey(i - 1, j + 1) )         &
+                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i - 1, j - 1) )         &
                                                 + 2.d0 * cn%a1 * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
                               endif
                         END DO
@@ -355,10 +347,10 @@ MODULE fdtd
                                     cn%B(idx_Ey) = 0.d0
                               else
                               ! Calcul du second membre Ey
-                                    cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                   & 
-                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )         &
-                                                - cn%bx*cn%by * ( cn%Ex(i  , j + 1) - cn%Ex(i , j)  )         &
-                                                - cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )         &
+                                    cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
+                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
+                                                - cn%bx*cn%by * ( cn%Ex(i + 1 , j + 1) - cn%Ex(i + 1 , j - 1)  )         &
+                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j) )                 &
                                                 - 2.d0 * cn%a1 * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
                               END IF
                         END DO
@@ -401,10 +393,11 @@ MODULE fdtd
                         m = m + 1
                         DO i = 0, Nx, 2
                               DO j = 0, Ny, 2
-                                    WRITE(idfile + 1, '(F16.10,1X)', advance='no') cn%Hz(i,j)
+                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
                               END DO
                               WRITE(idfile + 1, *)
-                        END DO     
+                        END DO 
+                        WRITE(idfile + 1, *)    
                   END IF
                   ! ! !---------------------------------------------------!
 
