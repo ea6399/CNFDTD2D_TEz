@@ -95,6 +95,7 @@ MODULE fdtd
             INTEGER :: n, m, nrhs
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
+            INTEGER :: id0, id1, jd0, jd1
             INTEGER :: snapshot
             INTEGER :: idx_Ex, idx_Ey
             REAL(8), ALLOCATABLE :: A1(:,:)
@@ -103,7 +104,7 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: A4(:,:)
             REAL(8), ALLOCATABLE :: BB(:,:)
             REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A1_int, A2_int, A3_int, A4_int 
-            REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int
+            REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int1, A_int2
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(A1(0:Nx, 0:Ny))
@@ -127,7 +128,8 @@ MODULE fdtd
 
             
             m = 0
-            display_it = .TRUE.     
+            display_it = .TRUE.  
+            charac = ""   
 
 
             !-------------------------------------------------------------!
@@ -240,6 +242,12 @@ MODULE fdtd
             !------------------ Assemblage de la matrice A -----------------!
             !---------------------------------------------------------------!
 
+                  ! ------- ! ------- !
+                  !   A1    !   A3    !
+                  !---------!---------!
+                  !   A4    !   A2    !
+                  ! ------- ! ------- !
+
 
             ! Détermine les indices de collage
             i0 = 0;        j0 = 0
@@ -256,12 +264,33 @@ MODULE fdtd
             cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = A3
             cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = A4
 
+            ! Extraction de la matrice intérieur A
+            ALLOCATE( A_int1( 0 : 2 * (Nx - 1) - 1, 0 : 2 * (Ny - 1) - 1 ) )
+            A_int1 = 0.0d0
+            WRITE(*, '(/, T5, A, I5, I5)') "shape(A_int) = ", shape(A_int1)
+
+            id0 = 0;          jd0 = 0
+            id1 = Nx - 1;     jd1 = Ny - 1
+
+            A_int1(id0 : Nx - 2      , jd0 : Ny - 2)         = A1_int
+            A_int1(id1 : id1 + Nx - 2, jd0 : Ny - 2)         = A4_int
+            A_int1(id0 : Nx - 2      , jd1 : jd1 + Ny - 2)   = A3_int
+            A_int1(id1 : id1 + Nx - 2, jd1 : jd1 + Ny - 2)   = A2_int
+
+            CALL extract_matrix(A_int2, cn%A)
+
+
+
+
+
             IF (display_it) then
                   CALL display_matrix(cn%A, " A assemblée")
                   write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
+                  CALL display_matrix(A_int1, " A intérieur")
+                  CALL display_matrix(A_int2, " A intérieur extrait 2")
             ENDIF
 
-            !CALL extract_matrice(cn%A, cn%A)
+
 
 
 
