@@ -4,6 +4,7 @@ PROGRAM main
       USE numerics
       USE source
       USE fdtd
+      USE test
 
       ! Variables
       IMPLICIT NONE
@@ -12,6 +13,8 @@ PROGRAM main
 
       ! Début du programme
       CALL cn%init()
+
+      !CALL init_test()
 
       ! Initialisation de la source
       CALL init_source()
