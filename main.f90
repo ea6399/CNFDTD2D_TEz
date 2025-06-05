@@ -14,7 +14,7 @@ PROGRAM main
       ! Début du programme
       CALL cn%init()
 
-      !CALL init_test()
+      CALL init_test()
 
       ! Initialisation de la source
       CALL init_source()

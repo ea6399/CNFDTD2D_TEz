@@ -13,7 +13,7 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
                   REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
-                  REAL(8), ALLOCATABLE :: B(:) 
+                  REAL(8), ALLOCATABLE :: B(:), rhs(:) 
                   REAL(8), ALLOCATABLE :: J(:,:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
@@ -36,7 +36,8 @@ MODULE fdtd
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%B   (                      0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )
+            ALLOCATE(cn%B   (                      0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
+            ALLOCATE(cn%rhs (                      0 : 2 * (Nx - 1) * (Ny - 1) - 1        ) )               ! Pour matrice A intérieur
             ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
             ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )
@@ -92,7 +93,7 @@ MODULE fdtd
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
             INTEGER :: info
-            INTEGER :: n, m, nrhs
+            INTEGER :: n, m, nrhs, nvec, nrow, ncol
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
             INTEGER :: id0, id1, jd0, jd1
@@ -103,6 +104,7 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: A3(:,:)
             REAL(8), ALLOCATABLE :: A4(:,:)
             REAL(8), ALLOCATABLE :: BB(:,:)
+            REAL(8), ALLOCATABLE :: rhs_mat(:,:)
             REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A1_int, A2_int, A3_int, A4_int 
             REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int1, A_int2
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
@@ -112,6 +114,7 @@ MODULE fdtd
             ALLOCATE(A3(0:Nx, 0:Ny))
             ALLOCATE(A4(0:Nx, 0:Ny))
             ALLOCATE(BB(0:2 * Nx + 1, 0:Ny))
+            ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
 
             A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; BB = 0.d0; ipiv = 0
 
@@ -128,7 +131,7 @@ MODULE fdtd
 
             
             m = 0
-            display_it = .FALSE.  
+            display_it = .TRUE.  
             charac = ""   
 
 
@@ -351,6 +354,9 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
             snapshot = 20
 
+            nrow = 2 * (Nx - 1)
+            ncol = Ny - 1
+            nvec = nrow * ncol
             nrhs = 1
             m = 0
             DO n = 0, Nt - 1
