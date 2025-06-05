@@ -102,6 +102,8 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: A3(:,:)
             REAL(8), ALLOCATABLE :: A4(:,:)
             REAL(8), ALLOCATABLE :: BB(:,:)
+            REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A1_int, A2_int, A3_int, A4_int 
+            REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(A1(0:Nx, 0:Ny))
@@ -113,29 +115,19 @@ MODULE fdtd
             A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; BB = 0.d0; ipiv = 0
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ", shape(cn%A)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = ", shape(A1)
-            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = ", shape(cn%B)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(BB) = ", shape(BB)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = ", shape(cn%Ex)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = ", shape(cn%Ey)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = ", shape(cn%Hz)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = ", shape(cn%J)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ",    shape(cn%A)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = ",  shape(A1)
+            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = ",    shape(cn%B)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(BB) = ",   shape(BB)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = ",   shape(cn%Ex)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = ",   shape(cn%Ey)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = ",   shape(cn%Hz)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = ",    shape(cn%J)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = ", shape(ipiv)
 
             
             m = 0
-            display_it = .TRUE.   
-            charac = ""    
-            
-            ! Parcous test
-            IF ( display_it .eqv. .FALSE. ) THEN
-                  DO i = 0, Ubound(cn%A,1)
-                        DO j = Lbound(cn%A,2), Ubound(cn%A,2)
-                              print *, i,j 
-                        END DO
-                  END DO
-            END IF
+            display_it = .TRUE.     
 
 
             !-------------------------------------------------------------!
@@ -146,7 +138,7 @@ MODULE fdtd
             !------------------ Sous matrice A1 -----------------!
             !----------------------------------------------------!
                   A1(0,0) = 1.0d0 + 2.d0 * cn%bx**2
-                  !A1(0,1) = - cn%bx**2 
+                  A1(0,1) = - cn%bx**2 
 
                   DO j = 1, Nx
                         A1(j,j-1) = - cn%bx**2
@@ -155,7 +147,15 @@ MODULE fdtd
                   END DO
 
             ! ! Affichage de la matrice A1
-            ! CALL display_matrix(A1)
+            DO i = LBOUND(A1,1), UBOUND(A1,1)
+                  WRITE(*, '(I5,500F12.2)') i, A1(i,:)
+            END DO
+            IF (display_it) THEN
+                  CALL display_matrix(A1, "A1")
+                  CALL extract_matrix(A1_int, A1)
+                  CALL display_matrix(A1_int, "A1 extracted")
+            END IF
+
             
 
 
@@ -164,7 +164,7 @@ MODULE fdtd
             !------------------ Sous matrice A2 -----------------!
             !----------------------------------------------------!     
                   A2(0,0) = 1.0d0 + 2.d0 * cn%by**2
-                  !A2(0,1) = - cn%by**2
+                  A2(0,1) = - cn%by**2
 
                   DO i = 1, Nx - 1
                         A2(i,i-1) = - cn%by**2 
@@ -177,7 +177,11 @@ MODULE fdtd
 
 
             ! ! Affichage de la matrice A2
-            ! CALL display_matrix(A2)
+            IF (display_it) THEN
+                  CALL display_matrix(A2, "A2")
+                  CALL extract_matrix(A2_int, A2)
+                  CALL display_matrix(A2_int, "A2 extracted")
+            END IF
 
 
 
@@ -206,7 +210,11 @@ MODULE fdtd
                   !A3 = cn%bx * cn%by * A3
 
             ! ! Affichage de la matrice A3
-             CALL display_matrix(A3, "A3")
+            IF (display_it) THEN
+                  CALL display_matrix(A3, "A3")
+                  CALL extract_matrix(A3_int, A3)
+                  CALL display_matrix(A3_int, "A3 extracted")
+            END IF
 
             !----------------------------------------------------!
             !------------------ Sous matrice A4 -----------------!
@@ -217,9 +225,13 @@ MODULE fdtd
 
                   !A3 = 0.0d0
 
-            ! ! Affichage de la matrice A4
-            ! CALL display_matrix(A4)
-            ! ! !---------------------------------------------------!
+            ! Affichage de la matrice A4
+            IF (display_it) THEN
+                  CALL display_matrix(A4, "A4")
+                  CALL extract_matrix(A4_int, A4)
+                  CALL display_matrix(A4_int, "A4 extracted")
+            END IF
+            
 
                   
             
@@ -243,6 +255,11 @@ MODULE fdtd
             ! Collage des matrices de couplage
             cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = A3
             cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = A4
+
+            IF (display_it) then
+                  CALL display_matrix(cn%A, " A assemblée")
+                  write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
+            ENDIF
 
             !CALL extract_matrice(cn%A, cn%A)
 
@@ -504,15 +521,15 @@ MODULE fdtd
             ! Affiche la matrice A
             REAL(8), INTENT(in) :: A(:,:)
             CHARACTER(LEN=*), INTENT(in), OPTIONAL :: name
-            INTEGER :: i, j
+            INTEGER :: i
 
             IF (PRESENT(name)) THEN
                   WRITE(*, '(/, T5, A,A,A /)', advance = 'no') "Matrice ", name, " : "
             ELSE
                   WRITE(*, '(/, T5, A, /)', advance = 'no') "Matrice :"
             END IF
-            DO i = LBOUND(A,1), SIZE(A,1)
-                  WRITE(*, '(I5,500F12.2)') i, A(i,:)
+            DO i = LBOUND(A,1), UBOUND(A,1)
+                  WRITE(*, '(I5,500F12.2)') i-1, A(i,:)
             END DO
       ENDSUBROUTINE display_matrix
 
@@ -529,7 +546,6 @@ MODULE fdtd
             ! Initialisation 
             n_inf = LBOUND(A,1)    ;     m_inf = LBOUND(A,2)
             n_max = UBOUND(A,1)    ;     m_max = UBOUND(A,2)
-            print *, "shape(A) = ", n_max, m_max
 
             ALLOCATE(A_int(n_inf + 1 : n_max - 1, m_inf + 1 : m_max - 1))
 
