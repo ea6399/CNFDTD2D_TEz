@@ -128,7 +128,7 @@ MODULE fdtd
 
             
             m = 0
-            display_it = .TRUE.  
+            display_it = .FALSE.  
             charac = ""   
 
 
@@ -148,13 +148,10 @@ MODULE fdtd
                         A1(j,j+1) = - cn%bx**2
                   END DO
 
+                  CALL extract_matrix(A1_int, A1)
             ! ! Affichage de la matrice A1
-            DO i = LBOUND(A1,1), UBOUND(A1,1)
-                  WRITE(*, '(I5,500F12.2)') i, A1(i,:)
-            END DO
             IF (display_it) THEN
                   CALL display_matrix(A1, "A1")
-                  CALL extract_matrix(A1_int, A1)
                   CALL display_matrix(A1_int, "A1 extracted")
             END IF
 
@@ -177,11 +174,12 @@ MODULE fdtd
                   A2(Nx, Nx-1) =  - cn%by**2
                   A2(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
 
+                  CALL extract_matrix(A2_int, A2)
+
 
             ! ! Affichage de la matrice A2
             IF (display_it) THEN
                   CALL display_matrix(A2, "A2")
-                  CALL extract_matrix(A2_int, A2)
                   CALL display_matrix(A2_int, "A2 extracted")
             END IF
 
@@ -209,12 +207,13 @@ MODULE fdtd
                   A3(Nx - 2, Nx) = -1.d0 
                   A3(Nx, Nx)    =  1.d0
 
-                  !A3 = cn%bx * cn%by * A3
+                  A3 = cn%bx * cn%by * A3
+                  
+                  CALL extract_matrix(A3_int, A3)
 
             ! ! Affichage de la matrice A3
             IF (display_it) THEN
                   CALL display_matrix(A3, "A3")
-                  CALL extract_matrix(A3_int, A3)
                   CALL display_matrix(A3_int, "A3 extracted")
             END IF
 
@@ -224,13 +223,14 @@ MODULE fdtd
 
                   A4 = -transpose(A3)
 
+                  CALL extract_matrix(A4_int, A4)
+
 
                   !A3 = 0.0d0
 
             ! Affichage de la matrice A4
             IF (display_it) THEN
                   CALL display_matrix(A4, "A4")
-                  CALL extract_matrix(A4_int, A4)
                   CALL display_matrix(A4_int, "A4 extracted")
             END IF
             
