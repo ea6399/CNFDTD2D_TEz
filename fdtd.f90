@@ -96,7 +96,7 @@ MODULE fdtd
             INTEGER :: n, m, nrhs, nvec, nrow, ncol
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
-            INTEGER :: id0, id1, jd0, jd1
+            !INTEGER :: id0, id1, jd0, jd1
             INTEGER :: snapshot
             INTEGER :: idx_Ex, idx_Ey
             REAL(8), ALLOCATABLE :: A1(:,:)
@@ -106,7 +106,7 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: BB(:,:)
             REAL(8), ALLOCATABLE :: rhs_mat(:,:)
             REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A1_int, A2_int, A3_int, A4_int 
-            REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int1, A_int2
+            !REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int1, A_int2
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(A1(0:Nx, 0:Ny))
@@ -131,7 +131,7 @@ MODULE fdtd
 
             
             m = 0
-            display_it = .TRUE.  
+            display_it = .FALSE.  
             charac = ""   
 
 
@@ -151,7 +151,7 @@ MODULE fdtd
                         A1(j,j+1) = - cn%bx**2
                   END DO
 
-                  CALL extract_matrix(A1_int, A1)
+                  !CALL extract_matrix_ud(A1_int, A1)
             ! ! Affichage de la matrice A1
             IF (display_it) THEN
                   CALL display_matrix(A1, "A1")
@@ -177,7 +177,7 @@ MODULE fdtd
                   A2(Nx, Nx-1) =  - cn%by**2
                   A2(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
 
-                  CALL extract_matrix(A2_int, A2)
+                  !CALL extract_matrix_ud(A2_int, A2)
 
 
             ! ! Affichage de la matrice A2
@@ -212,7 +212,7 @@ MODULE fdtd
 
                   A3 = cn%bx * cn%by * A3
                   
-                  CALL extract_matrix(A3_int, A3)
+                  !CALL extract_matrix_ud(A3_int, A3)
 
             ! ! Affichage de la matrice A3
             IF (display_it) THEN
@@ -226,7 +226,7 @@ MODULE fdtd
 
                   A4 = -transpose(A3)
 
-                  CALL extract_matrix(A4_int, A4)
+                  !CALL extract_matrix_ud(A4_int, A4)
 
 
                   !A3 = 0.0d0
@@ -268,19 +268,19 @@ MODULE fdtd
             cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = A4
 
             ! Extraction de la matrice intérieur A
-            ALLOCATE( A_int1( 0 : 2 * (Nx - 1) - 1, 0 : 2 * (Ny - 1) - 1 ) )
-            A_int1 = 0.0d0
-            WRITE(*, '(/, T5, A, I5, I5)') "shape(A_int) = ", shape(A_int1)
+            ! ALLOCATE( A_int1( 0 : 2 * (Nx - 1) - 1, 0 : 2 * (Ny - 1) - 1 ) )
+            ! A_int1 = 0.0d0
+            ! WRITE(*, '(/, T5, A, I5, I5)') "shape(A_int) = ", shape(A_int1)
 
-            id0 = 0;          jd0 = 0
-            id1 = Nx - 1;     jd1 = Ny - 1
+            ! id0 = 0;          jd0 = 0
+            ! id1 = Nx - 1;     jd1 = Ny - 1
 
-            A_int1(id0 : Nx - 2      , jd0 : Ny - 2)         = A1_int
-            A_int1(id1 : id1 + Nx - 2, jd0 : Ny - 2)         = A4_int
-            A_int1(id0 : Nx - 2      , jd1 : jd1 + Ny - 2)   = A3_int
-            A_int1(id1 : id1 + Nx - 2, jd1 : jd1 + Ny - 2)   = A2_int
+            ! A_int1(id0 : Nx - 2      , jd0 : Ny - 2)         = A1_int
+            ! A_int1(id1 : id1 + Nx - 2, jd0 : Ny - 2)         = A4_int
+            ! A_int1(id0 : Nx - 2      , jd1 : jd1 + Ny - 2)   = A3_int
+            ! A_int1(id1 : id1 + Nx - 2, jd1 : jd1 + Ny - 2)   = A2_int
 
-            CALL extract_matrix(A_int2, cn%A)
+            !CALL extract_matrix_ud(A_int2, cn%A)
 
 
 
@@ -289,8 +289,8 @@ MODULE fdtd
             IF (display_it) then
                   CALL display_matrix(cn%A, " A assemblée")
                   write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
-                  CALL display_matrix(A_int1, " A intérieur")
-                  CALL display_matrix(A_int2, " A intérieur extrait 2")
+                  ! CALL display_matrix(A_int1, " A intérieur")
+                  ! CALL display_matrix(A_int2, " A intérieur extrait 2")
             ENDIF
 
 
@@ -331,6 +331,7 @@ MODULE fdtd
             ! -------------------------------------------------------------------!
 
             CALL DGETRF(size(cn%A,1), SIZE(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
+            !CALL DGETRF(size(A_int1,1), size(A_int1,2), A_int1, size(A_int1,1), ipiv, info)
             IF (info > 0) THEN
                   WRITE(*,'(/,T5,A,I0,A,I0,A,/)') 'U(', info , ',', info ,') is exactly zero. The factorization has been completed, but the factor U is exactly singular.'
                   STOP 'LU failed'
@@ -373,18 +374,19 @@ MODULE fdtd
                   ! On enregistre les résultats du temps précédent
                   cn%Ex = BB(0 : Nx, 0 : Ny)
                   cn%Ey = BB(i1 : i1 + Nx, 0 : Ny)
-
-                  BB = 0.d0
+                  ! cn%Ex(1:Nx-1, 1:Ny-1) = rhs_mat(0:Nx - 2, :)
+                  ! cn%Ey(1:Nx-1, 1:Ny-1) = rhs_mat(Nx-1 : Nx - 1 + Nx - 2,: )
+                  !print * , "pass 1"
 
                  
                   
 
                   ! Second membre Ex
-                  DO i = 0,  Nx
+                  DO i = 0,  Nx - 2
                         !print *, "i = ", i
-                        DO j = 0, Ny
+                        DO j = 0, Ny - 2
                               ! Détermine le bonne indice
-                              idx_Ex = i * (Nx + 1) + j
+                              idx_Ex = i * (Nx - 1) + j
                               ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
                                     cn%B(idx_Ex) = 0.d0
@@ -398,14 +400,17 @@ MODULE fdtd
                         END DO
                   END DO
 
+                  !print *, "pass 2"
+
+
 
 
                   ! Second membre Ey
-                  DO i = 0 , Nx 
+                  DO i = 0 , Nx
                         !print *, "i = ", i
-                        DO j = 0,  Ny 
+                        DO j = 0,  Ny
                               ! Détermine le bonne indice
-                              idx_Ey = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
+                              idx_Ey = (Nx-1)*(Ny-1) + i * (Nx - 1) + j
                               ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
                                     cn%B(idx_Ey) = 0.d0
@@ -416,25 +421,31 @@ MODULE fdtd
                                                 - cn%bx*cn%by * ( cn%Ex(i + 1 , j + 1) - cn%Ex(i + 1 , j - 1)  )         &
                                                 + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j) )                 &
                                                 - 2.d0 * cn%a1 * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
-                              END IF
+                               END IF
                         END DO
                   END DO
+                  !print *, "pass 3"
 
                   
 
                   ! Résolution du système linéaire
-                  CALL DGETRS('N',size(cn%A,1),nrhs,cn%A,size(cn%A,1),ipiv,cn%B,size(cn%B),info)
+                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%rhs), info)
+                  !CALL DGETRS('N',size(A_int1,1),nrhs,A_int1,size(A_int1,1),ipiv,cn%rhs,size(cn%rhs),info)
+                  !print *, "pass 4"
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
                   BB = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  !rhs_mat = RESHAPE(cn%rhs, SHAPE=[nrow,ncol], ORDER=[2,1] )
 
+                  !print *, "pass 5"
                   
 
                   
 
                   ! Injection de la source
                   BB = BB + cn%J
-
+                  !rhs_mat = rhs_mat + cn%J
+                  !print *, "pass 6"
 
 
 
@@ -448,6 +459,17 @@ MODULE fdtd
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
                         END DO
                   END DO
+
+                  ! DO i = 2, Nx-2
+                  !       DO j = 2, Ny-2
+                  !             cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( rhs_mat(i,j + 1) - rhs_mat(i,j - 1)                  &
+                  !                                                       + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )                     &
+                  !                                     - cn%a2 / cn%dx * ( rhs_mat(id1 + (i + 1),j) - rhs_mat(id1 + (i-1),j)    &          ! i1 = Nx + 1
+                  !                                                       + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
+                  !       END DO
+                  ! END DO 
+
+                  !print *, "pass 7"
 
                   
 
@@ -569,26 +591,67 @@ MODULE fdtd
       ENDSUBROUTINE display_matrix
 
 
-      SUBROUTINE extract_matrix(A_int,A)
+      SUBROUTINE extract_matrix_ud(A_int,A)
             ! ARGUMENTS
             REAL(8), INTENT(in), DIMENSION(:,:) :: A
             REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
 
             ! VARIABLES LOCALES
-            INTEGER :: n_inf, m_inf
-            INTEGER :: n_max, m_max
+            INTEGER :: idx_min
+            INTEGER :: idx_max
+            INTEGER :: idy_min
+            INTEGER :: idy_max
 
             ! Initialisation 
-            n_inf = LBOUND(A,1)    ;     m_inf = LBOUND(A,2)
-            n_max = UBOUND(A,1)    ;     m_max = UBOUND(A,2)
+            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
+            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
 
-            ALLOCATE(A_int(n_inf + 1 : n_max - 1, m_inf + 1 : m_max - 1))
+            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
+            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
+
+            ! Allocation en retirant les indices de bord en y
+            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
+
+            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
+            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
+            PRINT *, "shape(A_int) = ", shape(A_int)
 
             A_int = 0.d0
 
             ! Extraction de la matrice A
-            A_int = A(n_inf + 1 : n_max - 1, m_inf + 1 : m_max - 1) 
-      ENDSUBROUTINE extract_matrix
+            A_int = A(idx_min + 1 : idx_max - 1, : ) 
+      ENDSUBROUTINE extract_matrix_ud
+
+      SUBROUTINE extract_matrix_lr(A_int,A)
+            ! ARGUMENTS
+            REAL(8), INTENT(in), DIMENSION(:,:) :: A
+            REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
+
+            ! VARIABLES LOCALES
+            INTEGER :: idx_min
+            INTEGER :: idx_max
+            INTEGER :: idy_min
+            INTEGER :: idy_max
+
+            ! Initialisation 
+            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
+            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
+
+            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
+            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
+
+            ! Allocation en retirant les indices de bord en y
+            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
+
+            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
+            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
+            PRINT *, "shape(A_int) = ", shape(A_int)
+
+            A_int = 0.d0
+
+            ! Extraction de la matrice A
+            A_int = A( : , idy_min + 1 : idy_max - 1) 
+      ENDSUBROUTINE extract_matrix_lr
 
 
 END MODULE fdtd

@@ -25,8 +25,12 @@ MODULE test
         Atest(:,3) = 0.0d0
 
         CALL display_matrix(Atest, "Atest")
-        CALL extract_matrix(Aint_test,Atest)
+        CALL extract_matrix_ud(Aint_test,Atest)
         CALL display_matrix(Aint_test)
+        DEALLOCATE(Aint_test)
+        CALL extract_matrix_lr(Aint_test,Atest)
+        CALL display_matrix(Aint_test, "Aint_test sur les bord y")
+
 
         Btest = 1.d0
         Btest(0,:) = 0.0d0
@@ -35,18 +39,21 @@ MODULE test
         Btest(:,5) = 0.0d0
 
         CALL display_matrix(Btest, "Btest")
-        CALL extract_matrix(Bint_test,Btest)
+        CALL extract_matrix_ud(Bint_test,Btest)
         CALL display_matrix(Bint_test, "B extracted")
+        DEALLOCATE(Bint_test)
+        CALL extract_matrix_lr(Bint_test, Btest)
+        CALL display_matrix(Bint_test,  "B extracted y")
 
-        Ctest = 1.d0
-        Ctest(0,:) = 0.0d0
-        Ctest(:,0) = 0.0d0
-        Ctest(10,:) = 0.0d0
-        Ctest(:,10) = 0.0d0
+        ! Ctest = 1.d0
+        ! Ctest(0,:) = 0.0d0
+        ! Ctest(:,0) = 0.0d0
+        ! Ctest(10,:) = 0.0d0
+        ! Ctest(:,10) = 0.0d0
 
-        CALL display_matrix(Ctest, "Ctest")
-        CALL extract_matrix(Cint_test, Ctest)
-        CALL display_matrix(Cint_test, "B extracted")
+        ! CALL display_matrix(Ctest, "Ctest")
+        ! CALL extract_matrix_ud(Cint_test, Ctest)
+        ! CALL display_matrix(Cint_test, "B extracted")
 
         ! Dimension intérieur
         nrow = 2*(Nx-1)

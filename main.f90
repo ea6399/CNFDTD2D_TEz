@@ -14,6 +14,7 @@ PROGRAM main
       ! Début du programme
       CALL cn%init()
 
+            ! Module de test
       CALL init_test()
 
       ! Initialisation de la source
@@ -26,6 +27,9 @@ PROGRAM main
       ! Libération de la mémoire
       CALL cn%freememory()
       CALL free_source()
+
+
+
 
 
 
