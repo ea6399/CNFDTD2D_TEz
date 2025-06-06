@@ -99,6 +99,7 @@ MODULE fdtd
             !INTEGER :: id0, id1, jd0, jd1
             INTEGER :: snapshot
             INTEGER :: idx_Ex, idx_Ey
+            REAL(8), ALLOCATABLE :: Ex_int(:,:), Ey_int(:,:)
             REAL(8), ALLOCATABLE :: A1(:,:)
             REAL(8), ALLOCATABLE :: A2(:,:)
             REAL(8), ALLOCATABLE :: A3(:,:)
