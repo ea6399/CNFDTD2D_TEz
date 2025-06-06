@@ -14,8 +14,7 @@ PROGRAM main
       ! Début du programme
       CALL cn%init()
 
-            ! Module de test
-      CALL init_test()
+      
 
       ! Initialisation de la source
       CALL init_source()
@@ -29,7 +28,8 @@ PROGRAM main
       CALL free_source()
 
 
-
+            ! Module de test
+      !CALL init_test()
 
 
 
