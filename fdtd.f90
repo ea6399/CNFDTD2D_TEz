@@ -103,7 +103,7 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: A2(:,:)
             REAL(8), ALLOCATABLE :: A3(:,:)
             REAL(8), ALLOCATABLE :: A4(:,:)
-            REAL(8), ALLOCATABLE :: BB(:,:)
+            REAL(8), ALLOCATABLE :: B_mat(:,:)
             REAL(8), ALLOCATABLE :: rhs_mat(:,:)
             REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A1_int, A2_int, A3_int, A4_int 
             !REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int
@@ -113,16 +113,16 @@ MODULE fdtd
             ALLOCATE(A2(0:Nx, 0:Ny))
             ALLOCATE(A3(0:Nx, 0:Ny))
             ALLOCATE(A4(0:Nx, 0:Ny))
-            ALLOCATE(BB(0:2 * Nx + 1, 0:Ny))
+            ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
             ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
 
-            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; BB = 0.d0; ipiv = 0
+            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; B_mat = 0.d0; ipiv = 0
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ",    shape(cn%A)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = ",  shape(A1)
             WRITE(*,'(/, T5, A, I15X)')    "shape(B) = ",    shape(cn%B)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(BB) = ",   shape(BB)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = ",   shape(B_mat)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = ",   shape(cn%Ex)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = ",   shape(cn%Ey)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = ",   shape(cn%Hz)
@@ -372,8 +372,8 @@ MODULE fdtd
                   !------------------- Ecriture du vecteur B --------------------!
                   !--------------------------------------------------------------!
                   ! On enregistre les résultats du temps précédent
-                  cn%Ex = BB(0 : Nx, 0 : Ny)
-                  cn%Ey = BB(i1 : i1 + Nx, 0 : Ny)
+                  cn%Ex = B_mat(0 : Nx, 0 : Ny)
+                  cn%Ey = B_mat(i1 : i1 + Nx, 0 : Ny)
                   ! cn%Ex(1:Nx-1, 1:Ny-1) = rhs_mat(0:Nx - 2, :)
                   ! cn%Ey(1:Nx-1, 1:Ny-1) = rhs_mat(Nx-1 : Nx - 1 + Nx - 2,: )
                   !print * , "pass 1"
@@ -434,7 +434,7 @@ MODULE fdtd
                   !print *, "pass 4"
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
-                  BB = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
                   !rhs_mat = RESHAPE(cn%rhs, SHAPE=[nrow,ncol], ORDER=[2,1] )
 
                   !print *, "pass 5"
@@ -443,7 +443,7 @@ MODULE fdtd
                   
 
                   ! Injection de la source
-                  BB = BB + cn%J
+                  B_mat = B_mat + cn%J
                   !rhs_mat = rhs_mat + cn%J
                   !print *, "pass 6"
 
@@ -453,9 +453,9 @@ MODULE fdtd
 
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( BB(i,j + 1) - BB(i,j - 1)                      &
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
                                                                         + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
-                                                      - cn%a2 / cn%dx * ( BB(i1 + (i + 1),j) - BB(i1 + (i-1),j)          &          ! i1 = Nx + 1
+                                                      - cn%a2 / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
                         END DO
                   END DO
@@ -496,12 +496,12 @@ MODULE fdtd
             END DO
 
             ! WRITE(*, '(/, T5, A, /)') "Test reshape du vecteur B :"
-            ! print *, "shape(BB) = ", shape(BB)
+            ! print *, "shape(B_mat) = ", shape(B_mat)
 
-            ! WRITE(*,'(2(AX,F16.10))') 'B(0)=',cn%B(0),' BB(0,0)=',BB(0,0)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(1)=',cn%B(1),' BB(0,1)=',BB(0,1)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(19)=',cn%B(19),' BB(3,3)=',BB(3,3)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(Ny+1)=',cn%B(Ny+1),' BB(1,0)=',BB(1,0)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(0)=',cn%B(0),' B_mat(0,0)=',B_mat(0,0)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(1)=',cn%B(1),' B_mat(0,1)=',B_mat(0,1)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(19)=',cn%B(19),' B_mat(3,3)=',B_mat(3,3)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(Ny+1)=',cn%B(Ny+1),' B_mat(1,0)=',B_mat(1,0)
 
             WRITE(*, '(/, t5, A, I5)') "Nombre de blocs : ", m
             
