@@ -95,7 +95,6 @@ MODULE fdtd
             LOGICAL :: display_it
             INTEGER :: info
             INTEGER :: n, m, nrhs, nvec, nrow, ncol
-            INTEGER :: dimEx(2), dimEy(2)
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1, i2, j2
             !INTEGER :: id0, id1, jd0, jd1
@@ -122,8 +121,6 @@ MODULE fdtd
             ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
 
             A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; B_mat = 0.d0; ipiv = 0; Ex_int = 0.d0; Ey_int = 0.d0
-            dimEx = /( Nx, Ny - 1 )/
-            dimEy = /( Nx - 1, Ny )/
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = "          ,  shape(cn%A)
@@ -155,7 +152,8 @@ MODULE fdtd
 
 
             ! Remplissage de la matrice A
-            
+            ! CALCUL DIRECT DE LA MATRICE A
+
                         
 
 
@@ -170,6 +168,9 @@ MODULE fdtd
                         A1(j,j) = 1.0d0 + 2.d0 * cn%bx**2
                         A1(j,j+1) = - cn%bx**2
                   END DO
+
+                  
+
 
                   !CALL extract_matrix_ud(A1_int, A1)
             ! ! Affichage de la matrice A1
@@ -673,5 +674,20 @@ MODULE fdtd
             A_int = A( : , idy_min + 1 : idy_max - 1) 
       ENDSUBROUTINE extract_matrix_lr
 
+      ! FUNCTION idx_Ex(i,j)
+      !       INTEGER, INTENT(in) :: i,j
+      !       INTEGER :: idx_Ex
+
+      !       idx_Ex = i * Ny + j
+
+      ! END FUNCTION idx_Ex
+
+      ! FUNCTION idx_Ey(i,j)
+      !       INTEGER, INTENT(in) :: i,j
+      !       INTEGER :: idx_Ey
+
+      !       idx_Ey = (Nx - 1) * (Ny - 1) + i * (Ny - 1) + j
+
+      ! END FUNCTION idx_Ey
 
 END MODULE fdtd
