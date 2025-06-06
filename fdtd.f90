@@ -34,13 +34,14 @@ MODULE fdtd
             ! Initialisation des variables
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
+            ALLOCATE(cn%B   (  0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
+            ALLOCATE(cn%rhs (  0 : 2 * (Nx - 1) * (Ny - 1) - 1        ) )               ! Pour matrice A intérieur
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%B   (                      0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
-            ALLOCATE(cn%rhs (                      0 : 2 * (Nx - 1) * (Ny - 1) - 1        ) )               ! Pour matrice A intérieur
             ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
-            ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )
+            !ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )              ! Précédente allocation de A
+            ALLOCATE(cn%A   (     0:2 * (Nx + 1) - 1 , 0:2 * (Ny - 1) - 1                 ) )              ! Matrice A entière
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
 
@@ -94,8 +95,9 @@ MODULE fdtd
             LOGICAL :: display_it
             INTEGER :: info
             INTEGER :: n, m, nrhs, nvec, nrow, ncol
+            INTEGER :: dimEx(2), dimEy(2)
             INTEGER :: i,j
-            INTEGER :: i0,j0,i1,j1
+            INTEGER :: i0,j0,i1,j1, i2, j2
             !INTEGER :: id0, id1, jd0, jd1
             INTEGER :: snapshot
             INTEGER :: idx_Ex, idx_Ey
@@ -114,31 +116,48 @@ MODULE fdtd
             ALLOCATE(A2(0:Nx, 0:Ny))
             ALLOCATE(A3(0:Nx, 0:Ny))
             ALLOCATE(A4(0:Nx, 0:Ny))
+            ALLOCATE(Ex_int(0:Nx, 1:Ny-1))
+            ALLOCATE(Ey_int(1:Nx-1, 0:Ny))
             ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
             ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
 
-            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; B_mat = 0.d0; ipiv = 0
+            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; B_mat = 0.d0; ipiv = 0; Ex_int = 0.d0; Ey_int = 0.d0
+            dimEx = /( Nx, Ny - 1 )/
+            dimEy = /( Nx - 1, Ny )/
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ",    shape(cn%A)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = ",  shape(A1)
-            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = ",    shape(cn%B)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = ",   shape(B_mat)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = ",   shape(cn%Ex)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = ",   shape(cn%Ey)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = ",   shape(cn%Hz)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = ",    shape(cn%J)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = ", shape(ipiv)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = "          ,  shape(cn%A)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = "        ,  shape(A1)
+            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = "          ,  shape(cn%B)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = "      ,  shape(B_mat)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = "         ,  shape(cn%Ex)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = "         ,  shape(cn%Ey)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = "         ,  shape(cn%Hz)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = "          ,  shape(cn%J)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex_int) = "     ,  shape(Ex_int)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey_int) = "     ,  shape(Ey_int)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(T(Ey_int)) = "  ,  shape(transpose(Ey_int))
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = "       ,  shape(ipiv)
 
-            
+
             m = 0
             display_it = .TRUE.  
-            charac = ""   
-
+            charac = "" 
 
             !-------------------------------------------------------------!
             !------------------ Ecriture de la matrice A -----------------!
             !-------------------------------------------------------------!
+
+
+
+            WRITE(*, '(/, T5, A, I5, I5)') "i0, j0 = ", i0, j0
+            WRITE(*, '(/, T5, A, I5, I5)') "i1, j1 = ", i1, j1
+
+
+            ! Remplissage de la matrice A
+            
+                        
+
 
             !----------------------------------------------------!
             !------------------ Sous matrice A1 -----------------!
@@ -156,7 +175,7 @@ MODULE fdtd
             ! ! Affichage de la matrice A1
             IF (display_it) THEN
                   CALL display_matrix(A1, "A1")
-                  CALL display_matrix(A1_int, "A1 extracted")
+                  !CALL display_matrix(A1_int, "A1 extracted")
             END IF
 
             
@@ -184,7 +203,7 @@ MODULE fdtd
             ! ! Affichage de la matrice A2
             IF (display_it) THEN
                   CALL display_matrix(A2, "A2")
-                  CALL display_matrix(A2_int, "A2 extracted")
+                  !CALL display_matrix(A2_int, "A2 extracted")
             END IF
 
 
@@ -218,7 +237,7 @@ MODULE fdtd
             ! ! Affichage de la matrice A3
             IF (display_it) THEN
                   CALL display_matrix(A3, "A3")
-                  CALL display_matrix(A3_int, "A3 extracted")
+                  !CALL display_matrix(A3_int, "A3 extracted")
             END IF
 
             !----------------------------------------------------!
@@ -235,7 +254,7 @@ MODULE fdtd
             ! Affichage de la matrice A4
             IF (display_it) THEN
                   CALL display_matrix(A4, "A4")
-                  CALL display_matrix(A4_int, "A4 extracted")
+                  !CALL display_matrix(A4_int, "A4 extracted")
             END IF
             
 
