@@ -76,9 +76,6 @@ MODULE test
 
         CALL display_matrix(rhs_mat,"rhs side reshaped")
 
-        DO i = 0, nrow
-            PRINT *, i, rhs_mat(i,:)
-        END DO
 
 
 
