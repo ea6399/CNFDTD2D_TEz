@@ -28,8 +28,8 @@ PROGRAM main
       CALL free_source()
 
 
-            ! Module de test
-      CALL init_test()
+      ! Module de test
+      ! CALL init_test()
 
 
 

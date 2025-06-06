@@ -106,7 +106,7 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: BB(:,:)
             REAL(8), ALLOCATABLE :: rhs_mat(:,:)
             REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A1_int, A2_int, A3_int, A4_int 
-            !REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int1, A_int2
+            !REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(A1(0:Nx, 0:Ny))
@@ -131,7 +131,7 @@ MODULE fdtd
 
             
             m = 0
-            display_it = .FALSE.  
+            display_it = .TRUE.  
             charac = ""   
 
 
@@ -268,17 +268,17 @@ MODULE fdtd
             cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = A4
 
             ! Extraction de la matrice intérieur A
-            ! ALLOCATE( A_int1( 0 : 2 * (Nx - 1) - 1, 0 : 2 * (Ny - 1) - 1 ) )
+            ! ALLOCATE( A_int( 0 : 2 * (Nx - 1) - 1, 0 : 2 * (Ny - 1) - 1 ) )
             ! A_int1 = 0.0d0
-            ! WRITE(*, '(/, T5, A, I5, I5)') "shape(A_int) = ", shape(A_int1)
+            ! WRITE(*, '(/, T5, A, I5, I5)') "shape(A_int) = ", shape(A_int)
 
             ! id0 = 0;          jd0 = 0
             ! id1 = Nx - 1;     jd1 = Ny - 1
 
-            ! A_int1(id0 : Nx - 2      , jd0 : Ny - 2)         = A1_int
-            ! A_int1(id1 : id1 + Nx - 2, jd0 : Ny - 2)         = A4_int
-            ! A_int1(id0 : Nx - 2      , jd1 : jd1 + Ny - 2)   = A3_int
-            ! A_int1(id1 : id1 + Nx - 2, jd1 : jd1 + Ny - 2)   = A2_int
+            ! A_int(id0 : Nx - 2      , jd0 : Ny - 2)         = A1_int
+            ! A_int(id1 : id1 + Nx - 2, jd0 : Ny - 2)         = A4_int
+            ! A_int(id0 : Nx - 2      , jd1 : jd1 + Ny - 2)   = A3_int
+            ! A_int(id1 : id1 + Nx - 2, jd1 : jd1 + Ny - 2)   = A2_int
 
             !CALL extract_matrix_ud(A_int2, cn%A)
 
@@ -382,9 +382,9 @@ MODULE fdtd
                   
 
                   ! Second membre Ex
-                  DO i = 0,  Nx - 2
+                  DO i = 0,  Nx
                         !print *, "i = ", i
-                        DO j = 0, Ny - 2
+                        DO j = 0, Ny
                               ! Détermine le bonne indice
                               idx_Ex = i * (Nx - 1) + j
                               ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
