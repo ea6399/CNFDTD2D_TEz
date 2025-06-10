@@ -41,7 +41,7 @@ MODULE fdtd
             ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
             !ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )              ! Précédente allocation de A
-            ALLOCATE(cn%A   (     0:2 * (Nx + 1) - 1 , 0:2 * (Ny - 1) - 1                 ) )              ! Matrice A entière
+            ALLOCATE(cn%A   (     0:2 * (Nx + 1) - 1 , 0:2 * (Ny + 1) - 1                 ) )              ! Matrice A entière
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
 
