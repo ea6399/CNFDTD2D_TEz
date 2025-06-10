@@ -99,35 +99,31 @@ MODULE fdtd
             !INTEGER :: id0, id1, jd0, jd1
             INTEGER :: snapshot
             INTEGER :: idx_Ex, idx_Ey
-            REAL(8), ALLOCATABLE :: A1(:,:)
-            REAL(8), ALLOCATABLE :: A2(:,:)
-            REAL(8), ALLOCATABLE :: A3(:,:)
-            REAL(8), ALLOCATABLE :: A4(:,:)
+            REAL(8), ALLOCATABLE :: Exx(:,:)
+            REAL(8), ALLOCATABLE :: Eyy(:,:)
+            REAL(8), ALLOCATABLE :: Exy(:,:)
+            REAL(8), ALLOCATABLE :: Eyx(:,:)
             REAL(8), ALLOCATABLE :: B_mat(:,:)
-            REAL(8), ALLOCATABLE :: rhs_mat(:,:)
-            REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A1_int, A2_int, A3_int, A4_int 
-            !REAL(8), ALLOCATABLE, DIMENSION(:,:) :: A_int1, A_int2
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
-            ALLOCATE(A1(0:Nx, 0:Ny))
-            ALLOCATE(A2(0:Nx, 0:Ny))
-            ALLOCATE(A3(0:Nx, 0:Ny))
-            ALLOCATE(A4(0:Nx, 0:Ny))
+            ALLOCATE(Exx(0:Nx, 0:Ny))
+            ALLOCATE(Eyy(0:Nx, 0:Ny))
+            ALLOCATE(Exy(0:Nx, 0:Ny))
+            ALLOCATE(Eyx(0:Nx, 0:Ny))
             ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
-            ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
 
-            A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; B_mat = 0.d0; ipiv = 0
+            Exx = 0.d0; Eyy = 0.d0; Exy = 0.d0; Eyx = 0.d0; B_mat = 0.d0; ipiv = 0
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = ",    shape(cn%A)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = ",  shape(A1)
-            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = ",    shape(cn%B)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = ",   shape(B_mat)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = ",   shape(cn%Ex)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = ",   shape(cn%Ey)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = ",   shape(cn%Hz)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = ",    shape(cn%J)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = ", shape(ipiv)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = "    ,  shape(cn%A)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = "  ,  shape(Exx)
+            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = "    ,  shape(cn%B)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = ",  shape(B_mat)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = "   ,  shape(cn%Ex)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = "   ,  shape(cn%Ey)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = "   ,  shape(cn%Hz)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = "    ,  shape(cn%J)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = " ,  shape(ipiv)
 
             
             m = 0
@@ -139,25 +135,31 @@ MODULE fdtd
             !------------------ Ecriture de la matrice A -----------------!
             !-------------------------------------------------------------!
 
+                        ! -------- ! -------- !
+                        !   Exx    !   Exy    !
+            ! A =       !----------!----------!
+                        !   Eyx    !   Eyy    !
+                        ! -------- ! -------- !
+
             !----------------------------------------------------!
-            !------------------ Sous matrice A1 -----------------!
+            !------------------ Sous matrice Exx -----------------!
             !----------------------------------------------------!
-                  A1(0,0) = 1.0d0 + 2.d0 * cn%bx**2
-                  A1(0,1) = - cn%bx**2 
+                  Exx(0,0) = 1.0d0 + 2.d0 * cn%bx**2
+                  Exx(0,1) = - cn%bx**2 
 
                   DO j = 1, Nx
-                        A1(j,j-1) = - cn%bx**2
-                        A1(j,j) = 1.0d0 + 2.d0 * cn%bx**2
-                        A1(j,j+1) = - cn%bx**2
+                        Exx(j,j-1) = - cn%bx**2
+                        Exx(j,j) = 1.0d0 + 2.d0 * cn%bx**2
+                        Exx(j,j+1) = - cn%bx**2
                   END DO
 
-                  !CALL extract_matrix_ud(A1_int, A1)
+                  !CALL extract_matrix_ud(A1_int, Exx)
 
 
-            ! ! Affichage de la matrice A1
+            ! ! Affichage de la matrice Exx
             IF (display_it) THEN
-                  CALL display_matrix(A1, "A1")
-                  !CALL display_matrix(A1_int, "A1 extracted")
+                  CALL display_matrix(Exx, "Exx")
+                  !CALL display_matrix(A1_int, "Exx extracted")
             END IF
 
             
@@ -165,84 +167,84 @@ MODULE fdtd
 
 
             !----------------------------------------------------!
-            !------------------ Sous matrice A2 -----------------!
+            !------------------ Sous matrice Eyy -----------------!
             !----------------------------------------------------!     
-                  A2(0,0) = 1.0d0 + 2.d0 * cn%by**2
-                  A2(0,1) = - cn%by**2
+                  Eyy(0,0) = 1.0d0 + 2.d0 * cn%by**2
+                  Eyy(0,1) = - cn%by**2
 
                   DO i = 1, Nx - 1
-                        A2(i,i-1) = - cn%by**2 
-                        A2(i,i)   = 1.0d0 + 2.d0 * cn%by**2
-                        A2(i,i+1) = - cn%by**2
+                        Eyy(i,i-1) = - cn%by**2 
+                        Eyy(i,i)   = 1.0d0 + 2.d0 * cn%by**2
+                        Eyy(i,i+1) = - cn%by**2
                   END DO
 
-                  A2(Nx, Nx-1) =  - cn%by**2
-                  A2(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
+                  Eyy(Nx, Nx-1) =  - cn%by**2
+                  Eyy(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
 
-                  !CALL extract_matrix_ud(A2_int, A2)
-
-
+                  !CALL extract_matrix_ud(A2_int, Eyy)
 
 
-            ! ! Affichage de la matrice A2
+
+
+            ! ! Affichage de la matrice Eyy
             IF (display_it) THEN
-                  CALL display_matrix(A2, "A2")
-                  !CALL display_matrix(A2_int, "A2 extracted")
+                  CALL display_matrix(Eyy, "Eyy")
+                  !CALL display_matrix(A2_int, "Eyy extracted")
             END IF
 
 
 
 
             !----------------------------------------------------!
-            !------------------ Sous matrice A3 -----------------!
+            !------------------ Sous matrice Exy -----------------!
             !----------------------------------------------------!
 
-                  A3(0,0) =  1.d0
-                  A3(0,2) = -1.d0
-                  A3(2,0) = -1.d0
-                  A3(1,1) =  2.d0
+                  Exy(0,0) =  1.d0
+                  Exy(0,2) = -1.d0
+                  Exy(2,0) = -1.d0
+                  Exy(1,1) =  2.d0
 
                   DO i = 1, Nx-2
                         j = i
-                        A3(i-1,j+1) =  -1.d0
-                        A3(i , i)   =   2.d0
-                        A3(i+2 , i) =  -1.d0
+                        Exy(i-1,j+1) =  -1.d0
+                        Exy(i , i)   =   2.d0
+                        Exy(i+2 , i) =  -1.d0
                   END DO 
 
-                  A3(Nx-1,Nx-1) =  2.d0
-                  A3(Nx, Nx - 2)= -1.d0
-                  A3(Nx - 2, Nx) = -1.d0 
-                  A3(Nx, Nx)    =  1.d0
+                  Exy(Nx-1,Nx-1) =  2.d0
+                  Exy(Nx, Nx - 2)= -1.d0
+                  Exy(Nx - 2, Nx) = -1.d0 
+                  Exy(Nx, Nx)    =  1.d0
 
-                  A3 = cn%bx * cn%by * A3
+                  Exy = cn%bx * cn%by * Exy
                   
-                  !CALL extract_matrix_ud(A3_int, A3)
+                  !CALL extract_matrix_ud(A3_int, Exy)
 
 
 
-            ! ! Affichage de la matrice A3
+            ! ! Affichage de la matrice Exy
             IF (display_it) THEN
-                  CALL display_matrix(A3, "A3")
-                  !CALL display_matrix(A3_int, "A3 extracted")
+                  CALL display_matrix(Exy, "Exy")
+                  !CALL display_matrix(A3_int, "Exy extracted")
             END IF
 
             !----------------------------------------------------!
-            !------------------ Sous matrice A4 -----------------!
+            !------------------ Sous matrice Eyx -----------------!
             !----------------------------------------------------!
 
-                  A4 = -transpose(A3)
+                  Eyx = -transpose(Exy)
 
-                  !CALL extract_matrix_ud(A4_int, A4)
-
-
-                  !A3 = 0.0d0
+                  !CALL extract_matrix_ud(A4_int, Eyx)
 
 
+                  !Exy = 0.0d0
 
-            ! Affichage de la matrice A4
+
+
+            ! Affichage de la matrice Eyx
             IF (display_it) THEN
-                  CALL display_matrix(A4, "A4")
-                  !CALL display_matrix(A4_int, "A4 extracted")
+                  CALL display_matrix(Eyx, "Eyx")
+                  !CALL display_matrix(A4_int, "Eyx extracted")
             END IF
             
 
@@ -253,11 +255,11 @@ MODULE fdtd
             !------------------ Assemblage de la matrice A -----------------!
             !---------------------------------------------------------------!
 
-                  ! ------- ! ------- !
-                  !   A1    !   A3    !
-                  !---------!---------!
-                  !   A4    !   A2    !
-                  ! ------- ! ------- !
+                        ! -------- ! -------- !
+                        !   Exx    !   Exy    !
+            ! A =       !----------!----------!
+                        !   Eyx    !   Eyy    !
+                        ! -------- ! -------- !
 
 
             ! Détermine les indices de collage
@@ -269,11 +271,11 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, I5, I5)') "i1, j1 = ", i1, j1
 
             ! Collage des blocs diagonaux
-            cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = A1
-            cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = A2
+            cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = Exx
+            cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = Eyy
             ! Collage des matrices de couplage
-            cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = A3
-            cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = A4
+            cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = Exy
+            cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = Eyx
 
             ! Extraction de la matrice intérieur A
             ! ALLOCATE( A_int1( 0 : 2 * (Nx - 1) - 1, 0 : 2 * (Ny - 1) - 1 ) )
@@ -317,17 +319,17 @@ MODULE fdtd
             ! ! !---------------------------------------------------!
 
             ! Libération de mémoire 
-            IF (ALLOCATED(A1)) THEN
-                  DEALLOCATE(A1)
+            IF (ALLOCATED(Exx)) THEN
+                  DEALLOCATE(Exx)
             END IF
-            IF (ALLOCATED(A2)) THEN
-                  DEALLOCATE(A2)
+            IF (ALLOCATED(Eyy)) THEN
+                  DEALLOCATE(Eyy)
             END IF
-            IF (ALLOCATED(A3)) THEN
-                  DEALLOCATE(A3)
+            IF (ALLOCATED(Exy)) THEN
+                  DEALLOCATE(Exy)
             END IF
-            IF (ALLOCATED(A4)) THEN
-                  DEALLOCATE(A4)
+            IF (ALLOCATED(Eyx)) THEN
+                  DEALLOCATE(Eyx)
             END IF
             ! ! !---------------------------------------------------!
 
