@@ -96,7 +96,6 @@ MODULE fdtd
             INTEGER :: n, m, nrhs, nvec, nrow, ncol
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
-            !INTEGER :: id0, id1, jd0, jd1
             INTEGER :: snapshot
             INTEGER :: idx_Ex, idx_Ey
             REAL(8), ALLOCATABLE :: Exx(:,:)
@@ -104,6 +103,9 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: Exy(:,:)
             REAL(8), ALLOCATABLE :: Eyx(:,:)
             REAL(8), ALLOCATABLE :: B_mat(:,:)
+            REAL(8), ALLOCATABLE :: A_pec(:,:)
+            REAL(8), ALLOCATABLE :: B_pec(:,:)
+
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(Exx(0:Nx, 0:Ny))
@@ -127,7 +129,7 @@ MODULE fdtd
 
             
             m = 0
-            display_it = .FALSE.  
+            display_it = .TRUE.  
             charac = ""   
 
 
@@ -153,13 +155,11 @@ MODULE fdtd
                         Exx(j,j+1) = - cn%bx**2
                   END DO
 
-                  !CALL extract_matrix_ud(A1_int, Exx)
 
 
             ! ! Affichage de la matrice Exx
             IF (display_it) THEN
                   CALL display_matrix(Exx, "Exx")
-                  !CALL display_matrix(A1_int, "Exx extracted")
             END IF
 
             
@@ -181,7 +181,6 @@ MODULE fdtd
                   Eyy(Nx, Nx-1) =  - cn%by**2
                   Eyy(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
 
-                  !CALL extract_matrix_ud(A2_int, Eyy)
 
 
 
@@ -189,7 +188,6 @@ MODULE fdtd
             ! ! Affichage de la matrice Eyy
             IF (display_it) THEN
                   CALL display_matrix(Eyy, "Eyy")
-                  !CALL display_matrix(A2_int, "Eyy extracted")
             END IF
 
 
@@ -218,14 +216,12 @@ MODULE fdtd
 
                   Exy = cn%bx * cn%by * Exy
                   
-                  !CALL extract_matrix_ud(A3_int, Exy)
 
 
 
             ! ! Affichage de la matrice Exy
             IF (display_it) THEN
                   CALL display_matrix(Exy, "Exy")
-                  !CALL display_matrix(A3_int, "Exy extracted")
             END IF
 
             !----------------------------------------------------!
@@ -234,17 +230,14 @@ MODULE fdtd
 
                   Eyx = -transpose(Exy)
 
-                  !CALL extract_matrix_ud(A4_int, Eyx)
 
 
-                  !Exy = 0.0d0
 
 
 
             ! Affichage de la matrice Eyx
             IF (display_it) THEN
                   CALL display_matrix(Eyx, "Eyx")
-                  !CALL display_matrix(A4_int, "Eyx extracted")
             END IF
             
 
@@ -277,42 +270,13 @@ MODULE fdtd
             cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = Exy
             cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = Eyx
 
-            ! Extraction de la matrice intérieur A
-            ! ALLOCATE( A_int1( 0 : 2 * (Nx - 1) - 1, 0 : 2 * (Ny - 1) - 1 ) )
-            ! A_int1 = 0.0d0
-            ! WRITE(*, '(/, T5, A, I5, I5)') "shape(A_int) = ", shape(A_int1)
-
-            ! id0 = 0;          jd0 = 0
-            ! id1 = Nx - 1;     jd1 = Ny - 1
-
-            ! A_int1(id0 : Nx - 2      , jd0 : Ny - 2)         = A1_int
-            ! A_int1(id1 : id1 + Nx - 2, jd0 : Ny - 2)         = A4_int
-            ! A_int1(id0 : Nx - 2      , jd1 : jd1 + Ny - 2)   = A3_int
-            ! A_int1(id1 : id1 + Nx - 2, jd1 : jd1 + Ny - 2)   = A2_int
-
-            !CALL extract_matrix_ud(A_int2, cn%A)
-
 
 
 
 
             IF (display_it) then
                   CALL display_matrix(cn%A, " A assemblée")
-                  !write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
-                  ! CALL display_matrix(A_int1, " A intérieur")
-                  ! CALL display_matrix(A_int2, " A intérieur extrait 2")
             ENDIF
-
-
-
-
-
-
-
-
-            ! Affichage de la matrice A
-            ! CALL display_matrix(cn%A)
-            !---------------------------------------------------!
 
             ! Vérification de la symétrie de la matrice A
             !CALL matrix_sym(cn%A)
@@ -384,8 +348,6 @@ MODULE fdtd
                   ! On enregistre les résultats du temps précédent
                   cn%Ex = B_mat(0 : Nx, 0 : Ny)
                   cn%Ey = B_mat(i1 : i1 + Nx, 0 : Ny)
-                  ! cn%Ex(1:Nx-1, 1:Ny-1) = rhs_mat(0:Nx - 2, :)
-                  ! cn%Ey(1:Nx-1, 1:Ny-1) = rhs_mat(Nx-1 : Nx - 1 + Nx - 2,: )
                   !print * , "pass 1"
 
                  
@@ -440,12 +402,10 @@ MODULE fdtd
 
                   ! Résolution du système linéaire
                   CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%rhs), info)
-                  !CALL DGETRS('N',size(A_int1,1),nrhs,A_int1,size(A_int1,1),ipiv,cn%rhs,size(cn%rhs),info)
                   !print *, "pass 4"
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
                   B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
-                  !rhs_mat = RESHAPE(cn%rhs, SHAPE=[nrow,ncol], ORDER=[2,1] )
 
                   !print *, "pass 5"
                   
@@ -454,7 +414,7 @@ MODULE fdtd
 
                   ! Injection de la source
                   B_mat = B_mat + cn%J
-                  !rhs_mat = rhs_mat + cn%J
+
                   !print *, "pass 6"
 
 
@@ -469,15 +429,6 @@ MODULE fdtd
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
                         END DO
                   END DO
-
-                  ! DO i = 2, Nx-2
-                  !       DO j = 2, Ny-2
-                  !             cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( rhs_mat(i,j + 1) - rhs_mat(i,j - 1)                  &
-                  !                                                       + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )                     &
-                  !                                     - cn%a2 / cn%dx * ( rhs_mat(id1 + (i + 1),j) - rhs_mat(id1 + (i-1),j)    &          ! i1 = Nx + 1
-                  !                                                       + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
-                  !       END DO
-                  ! END DO 
 
                   !print *, "pass 7"
 
