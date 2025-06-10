@@ -145,11 +145,11 @@ MODULE fdtd
             !------------------ Ecriture de la matrice A -----------------!
             !-------------------------------------------------------------!
 
-                  ! -------- ! -------- !
-                  !   Exx    !   Exy    !
-                  !----------!----------!
-                  !   Eyx    !   Eyy    !
-                  ! -------- ! -------- !
+                        ! -------- ! -------- !
+                        !   Exx    !   Exy    !
+            !  A =      !----------!----------!
+                        !   Eyx    !   Eyy    !
+                        ! -------- ! -------- !
 
 
 
@@ -621,5 +621,67 @@ MODULE fdtd
       !       idx_Ey = Nx * (Ny - 1) + (i - 1) * Ny + j
 
       ! END FUNCTION idx_Ey
+
+       SUBROUTINE extract_matrix_ud(A_int,A)
+            ! ARGUMENTS
+            REAL(8), INTENT(in), DIMENSION(:,:) :: A
+            REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
+
+            ! VARIABLES LOCALES
+            INTEGER :: idx_min
+            INTEGER :: idx_max
+            INTEGER :: idy_min
+            INTEGER :: idy_max
+
+            ! Initialisation 
+            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
+            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
+
+            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
+            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
+
+            ! Allocation en retirant les indices de bord en y
+            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
+
+            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
+            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
+            PRINT *, "shape(A_int) = ", shape(A_int)
+
+            A_int = 0.d0
+
+            ! Extraction de la matrice A
+            A_int = A(idx_min + 1 : idx_max - 1, : ) 
+      ENDSUBROUTINE extract_matrix_ud
+
+      SUBROUTINE extract_matrix_lr(A_int,A)
+            ! ARGUMENTS
+            REAL(8), INTENT(in), DIMENSION(:,:) :: A
+            REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
+
+            ! VARIABLES LOCALES
+            INTEGER :: idx_min
+            INTEGER :: idx_max
+            INTEGER :: idy_min
+            INTEGER :: idy_max
+
+            ! Initialisation 
+            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
+            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
+
+            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
+            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
+
+            ! Allocation en retirant les indices de bord en y
+            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
+
+            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
+            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
+            PRINT *, "shape(A_int) = ", shape(A_int)
+
+            A_int = 0.d0
+
+            ! Extraction de la matrice A
+            A_int = A( : , idy_min + 1 : idy_max - 1) 
+      ENDSUBROUTINE extract_matrix_lr
 
 END MODULE fdtd

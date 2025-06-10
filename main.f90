@@ -11,6 +11,9 @@ PROGRAM main
             type(cnfdtd) :: cn
 
 
+      ! Module de test
+      ! CALL init_test()
+
       ! Début du programme
       CALL cn%init()
 
@@ -28,8 +31,7 @@ PROGRAM main
       CALL free_source()
 
 
-      ! Module de test
-      ! CALL init_test()
+      
 
 
 
