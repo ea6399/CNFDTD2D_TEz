@@ -153,10 +153,6 @@ MODULE fdtd
 
 
 
-            WRITE(*, '(/, T5, A, I5, I5)') "i0, j0 = ", i0, j0
-            WRITE(*, '(/, T5, A, I5, I5)') "i1, j1 = ", i1, j1
-
-
             ! Remplissage de la matrice A
             ! CALCUL DIRECT DE LA MATRICE A
 
@@ -445,7 +441,7 @@ MODULE fdtd
                   
 
                   ! Résolution du système linéaire
-                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%rhs), info)
+                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%B), info)
                   !CALL DGETRS('N',size(A_int1,1),nrhs,A_int1,size(A_int1,1),ipiv,cn%rhs,size(cn%rhs),info)
                   !print *, "pass 4"
 
@@ -561,9 +557,7 @@ MODULE fdtd
             IF (ALLOCATED(cn%B)) THEN
             DEALLOCATE(cn%B)
             END IF
-            IF (ALLOCATED(cn%B)) THEN
-            DEALLOCATE(cn%B)
-            END IF
+      
 
       END SUBROUTINE freememory
 
