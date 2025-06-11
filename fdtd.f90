@@ -127,7 +127,7 @@ MODULE fdtd
 
 
             m = 0
-            display_it = .TRUE.  
+            display_it = .FALSE.  
             charac = "" 
 
             !-------------------------------------------------------------!
@@ -175,6 +175,7 @@ MODULE fdtd
             !----------------------------------------------------!
             !------------------ Sous matrice Eyy -----------------!
             !----------------------------------------------------!     
+                  Eyy = 0.d0
                   Eyy(0,0) = 1.0d0 + 2.d0 * cn%by**2
                   Eyy(0,1) = - cn%by**2
 
@@ -186,8 +187,7 @@ MODULE fdtd
 
                   Eyy(Nx, Nx-1) =  - cn%by**2
                   Eyy(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
-
-                  !CALL extract_matrix_ud(Eyy_int, Eyy)
+                  Eyy(Nx - 1, 0) = 0.d0
 
 
             ! ! Affichage de la matrice Eyy
@@ -202,22 +202,20 @@ MODULE fdtd
             !------------------ Sous matrice Exy -----------------!
             !----------------------------------------------------!
 
-                  Exy(0,0) =  1.d0
-                  Exy(0,2) = -1.d0
+                  Exy(0,0) = -1.d0
+                  Exy(1,0) =  2.d0
                   Exy(2,0) = -1.d0
-                  Exy(1,1) =  2.d0
 
                   DO i = 1, Nx-2
-                        j = i
-                        Exy(i-1,j+1) =  -1.d0
-                        Exy(i , i)   =   2.d0
-                        Exy(i+2 , i) =  -1.d0
+                        Exy(i,i)         =  -1.d0
+                        Exy(i + 1 , i)   =   2.d0
+                        Exy(i + 2 , i)   =  -1.d0
                   END DO 
 
-                  Exy(Nx-1,Nx-1) =  2.d0
-                  Exy(Nx, Nx - 2)= -1.d0
-                  Exy(Nx - 2, Nx) = -1.d0 
-                  Exy(Nx, Nx)    =  1.d0
+                  Exy(Nx-1, Nx - 1) = -1.d0
+                  Exy(Nx, Nx - 1) = 2.d0
+                  Exy(Nx, Nx) = -1.d0
+
 
                   Exy = cn%bx * cn%by * Exy
                   
@@ -231,7 +229,7 @@ MODULE fdtd
             !------------------ Sous matrice Eyx -----------------!
             !----------------------------------------------------!
 
-                  Eyx = -transpose(Exy)
+                  Eyx = transpose(Exy)
 
 
 
