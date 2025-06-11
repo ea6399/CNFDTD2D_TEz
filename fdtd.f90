@@ -127,7 +127,7 @@ MODULE fdtd
 
 
             m = 0
-            display_it = .FALSE.  
+            display_it = .TRUE.  
             charac = "" 
 
             !-------------------------------------------------------------!
