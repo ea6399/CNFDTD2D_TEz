@@ -17,6 +17,7 @@ MODULE fdtd
                   REAL(8), ALLOCATABLE :: J(:,:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
+                  INTEGER :: nall ! Nombre total de points dans la grille
                   REAL(8) :: Exx, Eyy, bx, by
             CONTAINS
                   ! Méthodes
@@ -30,16 +31,20 @@ MODULE fdtd
       SUBROUTINE init(cn)
             CLASS(cnfdtd), INTENT(inout) :: cn
             INTEGER :: i
+            ! Uniquement les points intérieurs de la grille nall
+            cn%nall = (Nx - 1) * (Ny + 1) + (Nx + 1) * (Ny + 1)
+            WRITE(*, '(/, T5, A,I0 /)') "Nombre de points dans la grille nall =", cn%nall
+            
 
             ! Initialisation des variables
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
-            ALLOCATE(cn%B   (  0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
+            ALLOCATE(cn%B   (  0 : cn%nall - 1        ) )               ! Pour matrice A entiere
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
-            ALLOCATE(cn%A   (     0:2 * (Nx + 1) * (Ny + 1) - 1 , 0:2*(Ny + 1)*(Nx + 1) - 1    ) )              ! Matrice A entière
+            ALLOCATE(cn%A   (     0:2*cn%nall - 1 , 0:2*cn%nall - 1    ) )              ! Matrice A entière
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
 
