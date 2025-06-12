@@ -18,5 +18,5 @@ set title "Animation Hz"
 # boucle sur chaque carte index k
 do for [k=0:nblocks-1] {
     splot 'data/Hz.txt' index k matrix with image
-    pause 0.001
+    pause 0.5
 }
