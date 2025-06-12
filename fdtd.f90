@@ -443,15 +443,8 @@ MODULE fdtd
                         END DO
                   END DO
 
-                  cn%Hz(Nx,0) = 0.d0
-                  cn%Hz(0,Ny) = 0.d0
                   ! Injection de la source 
                   cn%Hz(i_src,j_src) = Esrc(n)
-
-                  !print *, "pass 7"
-
-                  
-
 
                   
 
