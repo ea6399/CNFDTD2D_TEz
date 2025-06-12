@@ -35,12 +35,10 @@ MODULE fdtd
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%B   (  0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
-            ALLOCATE(cn%rhs (  0 : 2 * (Nx - 1) * (Ny - 1) - 1        ) )               ! Pour matrice A intérieur
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
-            !ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )              ! Précédente allocation de A
             ALLOCATE(cn%A   (     0:2 * (Nx + 1) - 1 , 0:2 * (Ny + 1) - 1                 ) )              ! Matrice A entière
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
@@ -98,7 +96,7 @@ MODULE fdtd
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
             INTEGER :: snapshot
-            INTEGER :: idx_Ex, idx_Ey
+            INTEGER :: idx, idy
             REAL(8), ALLOCATABLE :: Exx(:,:)
             REAL(8), ALLOCATABLE :: Eyy(:,:)
             REAL(8), ALLOCATABLE :: Exy(:,:)
@@ -363,13 +361,13 @@ MODULE fdtd
                         !print *, "i = ", i
                         DO j = 0, Ny
                               ! Détermine le bonne indice
-                              idx_Ex = i * (Nx + 1) + j
-                              ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
+                              idx = i * (Nx + 1) + j
+                              ! print *, "idx = ", idx, "i,j =", i , j
                               
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
-                                    cn%B(idx_Ex) = 0.d0
+                                    cn%B(idx) = 0.d0
                               else
-                                    cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
+                                    cn%B(idx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
                                                 + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
                                                 - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )         &
                                                 + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
@@ -386,13 +384,13 @@ MODULE fdtd
                         !print *, "i = ", i
                         DO j = 0,  Ny
                               ! Détermine le bonne indice
-                              idx_Ey = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
-                              ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
+                              idy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
+                              ! print *, "idy = ", idy, 'i,j =', i , j
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
-                                    cn%B(idx_Ey) = 0.d0
+                                    cn%B(idy) = 0.d0
                               else
                               ! Calcul du second membre Ey
-                                    cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
+                                    cn%B(idy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
                                                 + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
                                                 - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
                                                 + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j) )                 &
@@ -417,7 +415,7 @@ MODULE fdtd
 
                   ! ! Ey dans le second bloc
                    B_mat(Nx+1:2*Nx+1, 0:Ny) = RESHAPE( cn%B(nblock : 2*nblock-1), &
-                                                       SHAPE=[Nx+1,Ny+1], ORDER=[1,2] )
+                                                       SHAPE=[Nx+1,Ny+1], ORDER=[2,1] )
 
                   
 
@@ -430,16 +428,23 @@ MODULE fdtd
 
 
                   ! Mise à jour explicite de Hz
+                  cn%Hz(0,:) = 0.d0
+                  cn%Hz(Nx,:) = 0.d0
+                  cn%Hz(:,0) = 0.d0
+                  cn%Hz(:,Ny) = 0.d0
+
 
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
                               cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
-                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
+                                                                        + cn%Ex(i,j + 1) - cn%Ex(i,j - 1) )               &
                                                       - cn%a2 / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
                         END DO
                   END DO
 
+                  cn%Hz(Nx,0) = 0.d0
+                  cn%Hz(0,Ny) = 0.d0
                   ! Injection de la source 
                   cn%Hz(i_src,j_src) = Esrc(n)
 
@@ -562,21 +567,20 @@ MODULE fdtd
             END DO
       ENDSUBROUTINE display_matrix
 
-      ! FUNCTION idx_Ex(i,j)
+      ! INTEGER FUNCTION id_Ex(i,j)
       !       INTEGER, INTENT(in) :: i,j
-      !       INTEGER :: idx_Ex
 
-      !       idx_Ex = i * (Ny - 1) + j - 1
+      !       id_Ex = i * (Nx + 1) + j
 
-      ! END FUNCTION idx_Ex
+      ! END FUNCTION id_Ex
 
-      ! FUNCTION idx_Ey(i,j)
+      ! FUNCTION id_Ey(i,j)
       !       INTEGER, INTENT(in) :: i,j
-      !       INTEGER :: idx_Ey
+      !       INTEGER :: id_Ey
 
-      !       idx_Ey = Nx * (Ny - 1) + (i - 1) * Ny + j
+      !       id_Ey = (Nx + 1) * (Ny + 1) +  i * (Nx + 1) + j
 
-      ! END FUNCTION idx_Ey
+      ! END FUNCTION id_Ey
 
        SUBROUTINE extract_matrix_ud(A_int,A)
             ! ARGUMENTS
