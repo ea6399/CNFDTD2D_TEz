@@ -32,8 +32,9 @@ MODULE fdtd
             CLASS(cnfdtd), INTENT(inout) :: cn
             INTEGER :: i
             ! Uniquement les points intérieurs de la grille nall
-            cn%nall = (Nx - 1) * (Ny + 1) + (Nx + 1) * (Ny + 1)
+            cn%nall = (Nx + 1) * (Ny - 1) + (Nx - 1) * (Ny + 1)
             WRITE(*, '(/, T5, A,I0 /)') "Nombre de points dans la grille nall =", cn%nall
+            WRITE(*, '(/, T5, A, /)') "On ne prend en compte que les points intérieurs de la grille."
             
 
             ! Initialisation des variables
@@ -44,7 +45,7 @@ MODULE fdtd
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
-            ALLOCATE(cn%A   (     0:2*cn%nall - 1 , 0:2*cn%nall - 1    ) )              ! Matrice A entière
+            ALLOCATE(cn%A   (     0:cn%nall - 1 , 0:cn%nall - 1    ) )              ! Matrice A entière
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
 
@@ -94,14 +95,14 @@ MODULE fdtd
       INTEGER FUNCTION id_Ex(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            id_Ex = i * (Nx + 1) + j
+            id_Ex = i * (Nx - 1) + (j - 1)
 
       END FUNCTION id_Ex
 
       INTEGER FUNCTION id_Ey(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            id_Ey = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j
+            id_Ey = (Nx + 1) * (Ny - 1) + (i - 1) * (Ny - 1) + j
 
       END FUNCTION id_Ey
 
@@ -119,7 +120,6 @@ MODULE fdtd
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
-!            ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
 
             
             B_mat = 0.d0
@@ -155,10 +155,10 @@ MODULE fdtd
             ! CALCUL DIRECT DE LA MATRICE A
 
             DO i = 0, Nx
-                  DO j = 0, Ny                                            ! i : 0 - > Nx et j 0 -> Ny
+                  DO j = 1, Ny-1                                            ! i : 0 - > Nx et j 0 -> Ny
                         idx = id_Ex(i,j)
                         print *, idx                                 ! idx = i * (Nx + 1) + j  parcourt : 0 -> Nx * (Nx + 1) + Ny 
-                        idy = id_Ey(i,j)                                 ! idy = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j  
+                        idy = id_Ey(i,j+1)                                 ! idy = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j  
                         print *, idy
                         ! Écriture de la matrice A pour Ex
                         cn%A(idx,idx) = 1 + 2.d0 * cn%bx**2               ! Termes diagonaux Exx
@@ -175,10 +175,17 @@ MODULE fdtd
                         end if
 
                         if (j > 0) cn%A(idx,id_Ey(i,j - 1))  = + cn%bx * cn%by
-                        
-                        
+                  END DO
+            END DO
 
+                        
+            DO i = 1, Nx-1
+                  DO j = 0, Ny                                            ! i : 0 - > Nx et j 0 -> Ny
                         ! Écriture de la matrice A pour Ey
+                        idx = id_Ex(i,j)
+                        !print *, idx                                 
+                        idy = id_Ey(i,j)                                 
+                        !print *, idy
                         cn%A(idy,idy) = 1 + 2.d0 * cn%by**2               ! Termes diagonaux Eyy
                         if (i > 1) cn%A(idy, id_Ey(i-1,j)) = - cn%by**2  ! Termes Eyy hors diagonale
                         if (i < Nx) cn%A(idy, id_Ey(i+1,j)) = - cn%by**2 ! Termes Eyy hors diagonale
@@ -270,9 +277,9 @@ MODULE fdtd
                   ! Second membre Ex
                   DO i = 0,  Nx
                         !print *, "i = ", i
-                        DO j = 0, Ny
+                        DO j = 1, Ny-1
                               ! Détermine le bonne indice
-                              idx = i * (Nx + 1) + j
+                              idx = i * (Nx - 1) + j-1
                               ! print *, "idx = ", idx, "i,j =", i , j
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
                                     cn%B(idx) = 0.d0
@@ -292,11 +299,11 @@ MODULE fdtd
 
 
                   ! Second membre Ey
-                  DO i = 0 , Nx
+                  DO i = 1 , Nx-1
                         !print *, "i = ", i
                         DO j = 0,  Ny
                               ! Détermine le bonne indice
-                              idy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
+                              idy = (Nx+1)*(Ny-1) + (i-1) * (Ny + 1) + j
                               ! print *, "idy = ", idy, 'i,j =', i , j
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
                                     cn%B(idy) = 0.d0
