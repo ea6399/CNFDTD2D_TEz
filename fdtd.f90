@@ -13,7 +13,7 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
                   REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
-                  REAL(8), ALLOCATABLE :: B(:), rhs(:) 
+                  REAL(8), ALLOCATABLE :: B(:)
                   REAL(8), ALLOCATABLE :: J(:,:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
@@ -35,12 +35,10 @@ MODULE fdtd
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%B   (  0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
-            ALLOCATE(cn%rhs (  0 : 2 * (Nx - 1) * (Ny - 1) - 1        ) )               ! Pour matrice A intérieur
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
-            !ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )              ! Précédente allocation de A
             ALLOCATE(cn%A   (     0:2 * (Nx + 1) - 1 , 0:2 * (Ny + 1) - 1                 ) )              ! Matrice A entière
             ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
@@ -88,6 +86,20 @@ MODULE fdtd
 
       END SUBROUTINE init
 
+      INTEGER FUNCTION idx_Ex(i,j)
+            INTEGER, INTENT(in) :: i,j
+
+            idx_Ex = i * (Nx + 1) + j
+
+      END FUNCTION idx_Ex
+
+      INTEGER FUNCTION idx_Ey(i,j)
+            INTEGER, INTENT(in) :: i,j
+
+            idx_Ey = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j
+
+      END FUNCTION idx_Ey
+
       SUBROUTINE compute_fdtd(cn)
             CLASS(cnfdtd), INTENT(inout) :: cn
             ! Variables locales
@@ -95,11 +107,9 @@ MODULE fdtd
             LOGICAL :: display_it
             INTEGER :: info
             INTEGER :: n, m, nrhs, nvec, nrow, ncol
-            INTEGER :: i,j
+            INTEGER :: i,j, idx, idy
             INTEGER :: i0,j0,i1,j1, i2, j2
-            !INTEGER :: id0, id1, jd0, jd1
             INTEGER :: snapshot
-            INTEGER :: idx_Ex, idx_Ey
             REAL(8), ALLOCATABLE :: Ex_int(:,:), Ey_int(:,:)
             REAL(8), ALLOCATABLE :: Exx(:,:)
             REAL(8), ALLOCATABLE :: Eyy(:,:)
@@ -156,7 +166,52 @@ MODULE fdtd
             ! Remplissage de la matrice A
             ! CALCUL DIRECT DE LA MATRICE A
 
-                    !!!    
+            DO i = 0, Nx
+                  DO j = 0, Ny                                            ! i : 0 - > Nx et j 0 -> Ny
+                        idx = idx_Ex(i,j)
+                        print *, idx                                 ! idx = i * (Nx + 1) + j  parcourt : 0 -> Nx * (Nx + 1) + Ny 
+                        idy = idx_Ey(i,j)                                 ! idy = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j  
+                        print *, idy
+                        ! Écriture de la matrice A pour Ex
+                        cn%A(idx,idx) = 1 + 2.d0 * cn%bx**2               ! Termes diagonaux Exx
+                        if (j > 1) cn%A(idx, idx_Ex(i,j-1)) = - cn%bx**2  ! Termes Exx hors diagonale
+                        if (j < Ny) cn%A(idx, idx_Ex(i,j+1)) = - cn%bx**2 ! Termes Exx hors diagonale
+
+                        ! couplage Ey
+                        if (i < Nx) cn%A(idx,idx_Ey(i + 1,j))     = + cn%bx * cn%by
+
+                        cn%A(idx,idx_Ey(i,j))                     = - cn%bx * cn%by    
+  
+                        if ( i < Nx .AND. j > 0 ) then
+                              cn%A(idx,idx_Ey(i + 1,j - 1))       = - cn%bx * cn%by
+                        end if
+
+                        if (j > 0) cn%A(idx,idx_Ey(i,j - 1))  = + cn%bx * cn%by
+                        
+                        
+
+                        ! Écriture de la matrice A pour Ey
+                        cn%A(idy,idy) = 1 + 2.d0 * cn%by**2               ! Termes diagonaux Eyy
+                        if (i > 1) cn%A(idy, idx_Ey(i-1,j)) = - cn%by**2  ! Termes Eyy hors diagonale
+                        if (i < Nx) cn%A(idy, idx_Ey(i+1,j)) = - cn%by**2 ! Termes Eyy hors diagonale
+
+                        ! couplage Ex
+                        if  (j < Ny) cn%A(idy,idx_Ex(i,j+1)) = + cn%bx * cn%by
+
+                        cn%A(idy,idx_Ex(i,j))                = - cn%bx * cn%by    
+
+                        if ( i > 0 .AND. j < Ny ) then
+                              cn%A(idy,idx_Ex(i-1,j+1))      = - cn%bx * cn%by
+                        end if
+
+                        if (i > 0) cn%A(idy,idx_Ex(i-1,j))   = + cn%bx * cn%by
+
+                  END DO
+            END DO
+
+            call display_matrix(cn%A, "A calcul direct")
+
+                  
 
 
             !----------------------------------------------------!
@@ -372,140 +427,140 @@ MODULE fdtd
             nvec = nrow * ncol
             nrhs = 1
             m = 0
-            DO n = 0, Nt - 1
+            ! DO n = 0, Nt - 1
 
-                  IF (MOD(n,5*snapshot) == 0) THEN
-                        WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
-                  END IF
+            !       IF (MOD(n,5*snapshot) == 0) THEN
+            !             WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
+            !       END IF
 
-                  cn%J(i_src, j_src) =  Esrc(n)
+            !       cn%J(i_src, j_src) =  Esrc(n)
 
-                  !--------------------------------------------------------------!
-                  !------------------- Ecriture du vecteur B --------------------!
-                  !--------------------------------------------------------------!
-                  ! On enregistre les résultats du temps précédent
-                  cn%Ex = B_mat(0 : Nx, 0 : Ny)
-                  cn%Ey = B_mat(i1 : i1 + Nx, 0 : Ny)
-                  ! cn%Ex(1:Nx-1, 1:Ny-1) = rhs_mat(0:Nx - 2, :)
-                  ! cn%Ey(1:Nx-1, 1:Ny-1) = rhs_mat(Nx-1 : Nx - 1 + Nx - 2,: )
-                  !print * , "pass 1"
+            !       !--------------------------------------------------------------!
+            !       !------------------- Ecriture du vecteur B --------------------!
+            !       !--------------------------------------------------------------!
+            !       ! On enregistre les résultats du temps précédent
+            !       cn%Ex = B_mat(0 : Nx, 0 : Ny)
+            !       cn%Ey = B_mat(i1 : i1 + Nx, 0 : Ny)
+            !       ! cn%Ex(1:Nx-1, 1:Ny-1) = rhs_mat(0:Nx - 2, :)
+            !       ! cn%Ey(1:Nx-1, 1:Ny-1) = rhs_mat(Nx-1 : Nx - 1 + Nx - 2,: )
+            !       !print * , "pass 1"
 
                  
                   
 
-                  ! Second membre Ex
-                  DO i = 0,  Nx
-                        !print *, "i = ", i
-                        DO j = 0, Ny
-                              ! Détermine le bonne indice
-                              idx_Ex = i * (Nx - 1) + j
-                              ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
-                                    cn%B(idx_Ex) = 0.d0
-                              else
-                                    cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
-                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j + 1) - cn%Ey(i - 1, j + 1) )         &
-                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i - 1, j - 1) )         &
-                                                + 2.d0 * cn%Exx * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
-                              endif
-                        END DO
-                  END DO
+            !       ! Second membre Ex
+            !       DO i = 0,  Nx
+            !             !print *, "i = ", i
+            !             DO j = 0, Ny
+            !                   ! Détermine le bonne indice
+            !                   idx_Ex = i * (Nx - 1) + j
+            !                   ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
+            !                   if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
+            !                         cn%B(idx_Ex) = 0.d0
+            !                   else
+            !                         cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
+            !                                     + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
+            !                                     - cn%bx*cn%by * ( cn%Ey(i + 1, j + 1) - cn%Ey(i - 1, j + 1) )         &
+            !                                     + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i - 1, j - 1) )         &
+            !                                     + 2.d0 * cn%Exx * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
+            !                   endif
+            !             END DO
+            !       END DO
 
-                  !print *, "pass 2"
-
-
+            !       !print *, "pass 2"
 
 
-                  ! Second membre Ey
-                  DO i = 0 , Nx
-                        !print *, "i = ", i
-                        DO j = 0,  Ny
-                              ! Détermine le bonne indice
-                              idx_Ey = (Nx-1)*(Ny-1) + i * (Nx - 1) + j
-                              ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
-                                    cn%B(idx_Ey) = 0.d0
-                              else
-                              ! Calcul du second membre Ey
-                                    cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
-                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                                - cn%bx*cn%by * ( cn%Ex(i + 1 , j + 1) - cn%Ex(i + 1 , j - 1)  )         &
-                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j) )                 &
-                                                - 2.d0 * cn%Exx * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
-                               END IF
-                        END DO
-                  END DO
-                  !print *, "pass 3"
 
-                  
 
-                  ! Résolution du système linéaire
-                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%B), info)
-                  !CALL DGETRS('N',size(A_int1,1),nrhs,A_int1,size(A_int1,1),ipiv,cn%rhs,size(cn%rhs),info)
-                  !print *, "pass 4"
-
-                  ! reshape du vecteur B / order = [2,1] fait varier j avant i
-                  B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
-                  !rhs_mat = RESHAPE(cn%rhs, SHAPE=[nrow,ncol], ORDER=[2,1] )
-
-                  !print *, "pass 5"
-                  
+            !       ! Second membre Ey
+            !       DO i = 0 , Nx
+            !             !print *, "i = ", i
+            !             DO j = 0,  Ny
+            !                   ! Détermine le bonne indice
+            !                   idx_Ey = (Nx-1)*(Ny-1) + i * (Nx - 1) + j
+            !                   ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
+            !                   if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
+            !                         cn%B(idx_Ey) = 0.d0
+            !                   else
+            !                   ! Calcul du second membre Ey
+            !                         cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
+            !                                     + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
+            !                                     - cn%bx*cn%by * ( cn%Ex(i + 1 , j + 1) - cn%Ex(i + 1 , j - 1)  )         &
+            !                                     + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j) )                 &
+            !                                     - 2.d0 * cn%Exx * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
+            !                    END IF
+            !             END DO
+            !       END DO
+            !       !print *, "pass 3"
 
                   
 
-                  ! Injection de la source
-                  B_mat = B_mat + cn%J
-                  !rhs_mat = rhs_mat + cn%J
-                  !print *, "pass 6"
+            !       ! Résolution du système linéaire
+            !       CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%B), info)
+            !       !CALL DGETRS('N',size(A_int1,1),nrhs,A_int1,size(A_int1,1),ipiv,cn%rhs,size(cn%rhs),info)
+            !       !print *, "pass 4"
+
+            !       ! reshape du vecteur B / order = [2,1] fait varier j avant i
+            !       B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+            !       !rhs_mat = RESHAPE(cn%rhs, SHAPE=[nrow,ncol], ORDER=[2,1] )
+
+            !       !print *, "pass 5"
+                  
+
+                  
+
+            !       ! Injection de la source
+            !       B_mat = B_mat + cn%J
+            !       !rhs_mat = rhs_mat + cn%J
+            !       !print *, "pass 6"
 
 
 
-                  ! Mise à jour explicite de Hz
+            !       ! Mise à jour explicite de Hz
 
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%Eyy / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
-                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
-                                                      - cn%Eyy / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
-                                                                        + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
-                        END DO
-                  END DO
+            !       DO i = 1, Nx-1
+            !             DO j = 1, Ny-1
+            !                   cn%Hz(i,j) = cn%Hz(i,j) + cn%Eyy / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
+            !                                                             + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
+            !                                           - cn%Eyy / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
+            !                                                             + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
+            !             END DO
+            !       END DO
 
-                  ! DO i = 2, Nx-2
-                  !       DO j = 2, Ny-2
-                  !             cn%Hz(i,j) = cn%Hz(i,j) + cn%Eyy / cn%dy * ( rhs_mat(i,j + 1) - rhs_mat(i,j - 1)                  &
-                  !                                                       + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )                     &
-                  !                                     - cn%Eyy / cn%dx * ( rhs_mat(id1 + (i + 1),j) - rhs_mat(id1 + (i-1),j)    &          ! i1 = Nx + 1
-                  !                                                       + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
-                  !       END DO
-                  ! END DO 
+            !       ! DO i = 2, Nx-2
+            !       !       DO j = 2, Ny-2
+            !       !             cn%Hz(i,j) = cn%Hz(i,j) + cn%Eyy / cn%dy * ( rhs_mat(i,j + 1) - rhs_mat(i,j - 1)                  &
+            !       !                                                       + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )                     &
+            !       !                                     - cn%Eyy / cn%dx * ( rhs_mat(id1 + (i + 1),j) - rhs_mat(id1 + (i-1),j)    &          ! i1 = Nx + 1
+            !       !                                                       + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
+            !       !       END DO
+            !       ! END DO 
 
-                  !print *, "pass 7"
+            !       !print *, "pass 7"
 
                   
 
 
                   
 
-                  ! Ecriture dans le fichier 
-                  IF (MOD(n,snapshot) == 0) THEN
-                        m = m + 1
-                        DO i = 0, Nx, 2
-                              DO j = 0, Ny, 2
-                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
-                              END DO
-                              WRITE(idfile + 1, *)
-                        END DO 
-                        WRITE(idfile + 1, *)    
-                  END IF
-                  ! ! !---------------------------------------------------!
+            !       ! Ecriture dans le fichier 
+            !       IF (MOD(n,snapshot) == 0) THEN
+            !             m = m + 1
+            !             DO i = 0, Nx, 2
+            !                   DO j = 0, Ny, 2
+            !                         WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
+            !                   END DO
+            !                   WRITE(idfile + 1, *)
+            !             END DO 
+            !             WRITE(idfile + 1, *)    
+            !       END IF
+            !       ! ! !---------------------------------------------------!
 
 
 
                   
                   
-            END DO
+            ! END DO
 
             ! WRITE(*, '(/, T5, A, /)') "Test reshape du vecteur B :"
             ! print *, "shape(B_mat) = ", shape(B_mat)
@@ -600,82 +655,7 @@ MODULE fdtd
             END DO
       ENDSUBROUTINE display_matrix
 
-      ! FUNCTION idx_Ex(i,j)
-      !       INTEGER, INTENT(in) :: i,j
-      !       INTEGER :: idx_Ex
+      
 
-      !       idx_Ex = i * (Ny - 1) + j - 1
-
-      ! END FUNCTION idx_Ex
-
-      ! FUNCTION idx_Ey(i,j)
-      !       INTEGER, INTENT(in) :: i,j
-      !       INTEGER :: idx_Ey
-
-      !       idx_Ey = Nx * (Ny - 1) + (i - 1) * Ny + j
-
-      ! END FUNCTION idx_Ey
-
-       SUBROUTINE extract_matrix_ud(A_int,A)
-            ! ARGUMENTS
-            REAL(8), INTENT(in), DIMENSION(:,:) :: A
-            REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
-
-            ! VARIABLES LOCALES
-            INTEGER :: idx_min
-            INTEGER :: idx_max
-            INTEGER :: idy_min
-            INTEGER :: idy_max
-
-            ! Initialisation 
-            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
-            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
-
-            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
-            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
-
-            ! Allocation en retirant les indices de bord en y
-            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
-
-            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
-            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
-            PRINT *, "shape(A_int) = ", shape(A_int)
-
-            A_int = 0.d0
-
-            ! Extraction de la matrice A
-            A_int = A(idx_min + 1 : idx_max - 1, : ) 
-      ENDSUBROUTINE extract_matrix_ud
-
-      SUBROUTINE extract_matrix_lr(A_int,A)
-            ! ARGUMENTS
-            REAL(8), INTENT(in), DIMENSION(:,:) :: A
-            REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
-
-            ! VARIABLES LOCALES
-            INTEGER :: idx_min
-            INTEGER :: idx_max
-            INTEGER :: idy_min
-            INTEGER :: idy_max
-
-            ! Initialisation 
-            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
-            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
-
-            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
-            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
-
-            ! Allocation en retirant les indices de bord en y
-            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
-
-            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
-            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
-            PRINT *, "shape(A_int) = ", shape(A_int)
-
-            A_int = 0.d0
-
-            ! Extraction de la matrice A
-            A_int = A( : , idy_min + 1 : idy_max - 1) 
-      ENDSUBROUTINE extract_matrix_lr
 
 END MODULE fdtd
