@@ -271,8 +271,6 @@ MODULE fdtd
             cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = Eyx
 
 
-
-
             IF (display_it) then
                   CALL display_matrix(cn%A, " A assemblée")
                   write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
@@ -367,13 +365,14 @@ MODULE fdtd
                               ! Détermine le bonne indice
                               idx_Ex = i * (Nx + 1) + j
                               ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
+                              
                               if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
                                     cn%B(idx_Ex) = 0.d0
                               else
                                     cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
                                                 + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j + 1) - cn%Ey(i - 1, j + 1) )         &
-                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i - 1, j - 1) )         &
+                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )         &
+                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
                                                 + 2.d0 * cn%a1 * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
                               endif
                         END DO
@@ -395,8 +394,8 @@ MODULE fdtd
                               ! Calcul du second membre Ey
                                     cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
                                                 + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                                - cn%bx*cn%by * ( cn%Ex(i + 1 , j + 1) - cn%Ex(i + 1 , j - 1)  )         &
-                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j-1) )                 &
+                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
+                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j) )                 &
                                                 - 2.d0 * cn%a1 * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
                                END IF
                         END DO
@@ -426,14 +425,7 @@ MODULE fdtd
 
 
                   !print *, "pass 4"
-                  
 
-                  
-
-                  ! Injection de la source
-                  B_mat = B_mat + cn%J
-                  !rhs_mat = rhs_mat + cn%J
-                  !print *, "pass 6"
 
 
 
@@ -447,6 +439,9 @@ MODULE fdtd
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
                         END DO
                   END DO
+
+                  ! Injection de la source 
+                  cn%Hz(i_src,j_src) = Esrc(n)
 
                   !print *, "pass 7"
 
