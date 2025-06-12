@@ -107,7 +107,7 @@ MODULE fdtd
             LOGICAL :: display_it
             INTEGER :: info
             INTEGER :: n, m, nrhs, nvec, nrow, ncol
-            INTEGER :: i,j, idx, idy
+            INTEGER :: i,j, idx, idy, k
             INTEGER :: i1
             INTEGER :: snapshot
             REAL(8), ALLOCATABLE :: B_mat(:,:)
@@ -152,9 +152,9 @@ MODULE fdtd
             DO i = 0, Nx
                   DO j = 0, Ny                                            ! i : 0 - > Nx et j 0 -> Ny
                         idx = id_Ex(i,j)
-                        print *, idx                                 ! idx = i * (Nx + 1) + j  parcourt : 0 -> Nx * (Nx + 1) + Ny 
+                        !print *, idx                                 ! idx = i * (Nx + 1) + j  parcourt : 0 -> Nx * (Nx + 1) + Ny 
                         idy = id_Ey(i,j)                                 ! idy = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j  
-                        print *, idy
+                        !print *, idy
                         ! Écriture de la matrice A pour Ex
                         cn%A(idx,idx) = 1 + 2.d0 * cn%bx**2               ! Termes diagonaux Exx
                         if (j > 1) cn%A(idx, id_Ex(i,j-1)) = - cn%bx**2  ! Termes Exx hors diagonale
@@ -190,6 +190,27 @@ MODULE fdtd
                         if (i > 0) cn%A(idy,id_Ex(i-1,j))   = + cn%bx * cn%by
 
                   END DO
+            END DO
+
+            ! Conditions limites PEC
+            DO i = 0, Nx
+            ! Bord bas (j=0)
+            k = id_Ex(i, 0)
+            cn%A(k, k) = 1.0d0
+            
+            ! Bord haut (j=Ny)
+            k = id_Ex(i, Ny)
+            cn%A(k, k) = 1.0d0
+            END DO
+
+            DO j = 0, Ny
+            ! Bord gauche (i=0)
+            k = id_Ey(0, j)
+            cn%A(k, k) = 1.0d0
+            
+            ! Bord droit (i=Nx)
+            k = id_Ey(Nx, j)
+            cn%A(k, k) = 1.0d0
             END DO
 
 
