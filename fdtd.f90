@@ -446,6 +446,7 @@ MODULE fdtd
                   ! Injection de la source 
                   cn%Hz(i_src,j_src) = Esrc(n)
 
+
                   
 
                   ! Ecriture dans le fichier 
@@ -460,7 +461,7 @@ MODULE fdtd
                         WRITE(idfile + 1, *)    
                   END IF
                   ! ! !---------------------------------------------------!
-
+                  !     ---------------------------------------------------!
 
 
                   
