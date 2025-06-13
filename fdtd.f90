@@ -157,7 +157,7 @@ MODULE fdtd
                         !print *, idy
                         ! Écriture de la matrice A pour Ex
                         cn%A(idx,idx) = 1 + 2.d0 * cn%bx**2               ! Termes diagonaux Exx
-                        if (j > 1) cn%A(idx, id_Ex(i,j-1)) = - cn%bx**2  ! Termes Exx hors diagonale
+                        if (j > 0) cn%A(idx, id_Ex(i,j-1)) = - cn%bx**2  ! Termes Exx hors diagonale
                         if (j < Ny) cn%A(idx, id_Ex(i,j+1)) = - cn%bx**2 ! Termes Exx hors diagonale
 
                         ! couplage Ey
@@ -175,7 +175,7 @@ MODULE fdtd
 
                         ! Écriture de la matrice A pour Ey
                         cn%A(idy,idy) = 1 + 2.d0 * cn%by**2               ! Termes diagonaux Eyy
-                        if (i > 1) cn%A(idy, id_Ey(i-1,j)) = - cn%by**2  ! Termes Eyy hors diagonale
+                        if (i > 0) cn%A(idy, id_Ey(i-1,j)) = - cn%by**2  ! Termes Eyy hors diagonale
                         if (i < Nx) cn%A(idy, id_Ey(i+1,j)) = - cn%by**2 ! Termes Eyy hors diagonale
 
                         ! couplage Ex
