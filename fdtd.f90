@@ -109,7 +109,6 @@ MODULE fdtd
       SUBROUTINE compute_fdtd(cn)
             CLASS(cnfdtd), INTENT(inout) :: cn
             ! Variables locales
-            REAL(8), ALLOCATABLE :: Ex_new(:,:), Ey_new(:,:)
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
             INTEGER :: info
@@ -117,6 +116,7 @@ MODULE fdtd
             INTEGER :: i,j, idx, idy
             INTEGER :: i1
             INTEGER :: snapshot
+            REAL(8), ALLOCATABLE :: Ex_new(:,:), Ey_new(:,:)
             REAL(8), ALLOCATABLE :: B_mat(:,:)
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
@@ -125,6 +125,12 @@ MODULE fdtd
             ALLOCATE(Ey_new(1 : Nx - 1, 0 : Ny))
             
             B_mat = 0.d0
+            Ex_new = 0.d0
+            Ey_new = 0.d0
+
+            ! CALL display_matrix(B_mat, " B_mat avant remplissage")
+            ! CALL display_matrix(Ex_new, " Ex_new avant remplissage")
+            ! CALL display_matrix(Ey_new, " Ey_new avant remplissage")
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = "          ,  shape(cn%A)
@@ -132,6 +138,8 @@ MODULE fdtd
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = "      ,  shape(B_mat)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = "         ,  shape(cn%Ex)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = "         ,  shape(cn%Ey)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex_new) = "     ,  shape(Ex_new)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey_new) = "     ,  shape(Ey_new)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = "         ,  shape(cn%Hz)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = "          ,  shape(cn%J)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = "       ,  shape(ipiv)
@@ -278,12 +286,17 @@ MODULE fdtd
                         DO i = 0, Nx
                               ! Détermine le bonne indice
                               idx = (j-1) * (Nx + 1) + i 
+                              !print *, idx
                               ! print *, "idx = ", idx, "i,j =", i , j
-                              cn%B(idx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                        & 
-                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
-                                          - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
-                                          + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
-                                          + 2.d0 * cn%Exx * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
+                              IF (i == 0 .OR. i == Nx) THEN
+                                    cn%B(idx) = 0.d0 ! PEC aux bords
+                              ELSE 
+                                    cn%B(idx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                        & 
+                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
+                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
+                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
+                                                + 2.d0 * cn%Exx * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
+                              END IF
                         END DO
                   END DO
 
@@ -298,13 +311,18 @@ MODULE fdtd
                         !print *, "i = ", i
                         DO j = 0,  Ny
                               ! Détermine le bonne indice
-                              idy = (Nx + 1) * (Ny - 1) + (j - 1) * (Ny + 1) + i                              
+                              idy = (Nx + 1) * (Ny - 1) + (i - 1) * (Ny + 1) + j         
+                              !print *, idy                    
                               ! Calcul du second membre Ey
-                              cn%B(idy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
-                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                          - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
-                                          + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )                 &
-                                          - 2.d0 * cn%Exx * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
+                              IF ( j == 0 .OR. j == Ny) THEN
+                                    cn%B(idy) = 0.d0
+                              ELSE
+                                    cn%B(idy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                           & 
+                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )              &
+                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )               &
+                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )               &
+                                                - 2.d0 * cn%Exx * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
+                              END IF
                         END DO
                   END DO
                   !print *, "pass 3"
@@ -321,10 +339,11 @@ MODULE fdtd
                                     SHAPE = [Nx + 1, Ny - 1], &
                                     ORDER = [1,2] ) ! Ex
 
-                  Ey_new = reshape( cn%B( (Nx - 1)*(Ny + 1) : (Nx - 1) * (Ny + 1) + (Nx - 1) * (Ny + 1) - 1), &
+                  Ey_new = reshape( cn%B( (Nx + 1)*(Ny - 1) : (Nx + 1) * (Ny - 1) + (Nx - 1) * (Ny + 1) - 1), &
                                     SHAPE = [Nx - 1, Ny + 1], &
                                     ORDER = [2,1] ) ! Ey
                   B_mat = 0.d0
+                  ! On replace les valeurs de Ex et Ey dans B_mat
                   B_mat(0 : Nx, 1 : Ny - 1) = Ex_new
                   B_mat(Nx + 1 + 1 : Nx + 1 + Nx - 1, 0 : Ny) = Ey_new
 
@@ -336,9 +355,9 @@ MODULE fdtd
 
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%Eyy / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%Eyy / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)               &
                                                                         + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
-                                                      - cn%Eyy / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
+                                                      - cn%Eyy / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)   &          ! i1 = Nx + 1
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
                         END DO
                   END DO
@@ -364,10 +383,6 @@ MODULE fdtd
                         WRITE(idfile + 1, *)    
                   END IF
                   ! ! !---------------------------------------------------!
-
-
-
-                  
                   
             END DO
 
@@ -388,6 +403,10 @@ MODULE fdtd
             
             WRITE(*, '(/, T5, A, /)') "Fin de la boucle temporelle"
 
+            DEALLOCATE(Ex_new)
+            DEALLOCATE(Ey_new)
+            DEALLOCATE(B_mat)
+
 
       END SUBROUTINE compute_fdtd
 
@@ -400,24 +419,35 @@ MODULE fdtd
             IF (ALLOCATED(cn%N_d)) THEN
             DEALLOCATE(cn%N_d)
             END IF
+
             IF (ALLOCATED(cn%S)) THEN
             DEALLOCATE(cn%S)
             END IF
+
             IF (ALLOCATED(cn%Ex)) THEN
             DEALLOCATE(cn%Ex)
             END IF
+
+            IF (ALLOCATED(cn%Ey)) THEN
+            DEALLOCATE(cn%Ey)
+            END IF
+
             IF (ALLOCATED(cn%Hz)) THEN
             DEALLOCATE(cn%Hz)
             END IF
+
             IF (ALLOCATED(cn%c_E)) THEN
             DEALLOCATE(cn%c_E)
             END IF
+
             IF (ALLOCATED(cn%c_H)) THEN
             DEALLOCATE(cn%c_H)
             END IF
+
             IF (ALLOCATED(cn%A)) THEN
             DEALLOCATE(cn%A)
             END IF
+
             IF (ALLOCATED(cn%B)) THEN
             DEALLOCATE(cn%B)
             END IF
