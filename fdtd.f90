@@ -95,28 +95,28 @@ MODULE fdtd
       INTEGER FUNCTION idx_Ex(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            idx_Ex = (j - 1) * (Nx + 1) + i
+            idx_Ex = (j ) * (Nx - 1) + i
 
       END FUNCTION idx_Ex
 
       INTEGER FUNCTION idy_Ex(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            idy_Ex = (Nx + 1) * (Ny - 1) + (j - 1) * (Ny + 1) + i
+            idy_Ex = (Nx + 1) * (Ny - 1) + (j) * (Ny - 1) + i
 
       END FUNCTION idy_Ex
 
       INTEGER FUNCTION idx_Ey(i,j)
             INTEGER, INTENT(in) :: i,j 
 
-            idx_Ey = (i - 1) * (Ny + 1) + j
+            idx_Ey = (i ) * (Ny - 1) + j
 
       END FUNCTION idx_Ey
 
       INTEGER FUNCTION idy_Ey(i,j)
             INTEGER, INTENT(in) :: i,j 
 
-            idy_Ey = (Nx - 1) * (Ny + 1) + (i - 1) * (Ny + 1) + j  
+            idy_Ey = (Nx - 1) * (Ny + 1) + (i) * (Ny - 1) + j  
 
       END FUNCTION idy_Ey
 
@@ -183,51 +183,55 @@ MODULE fdtd
             ! On fait un remplissage en colonne de la matrice A
             DO j = 1, Ny -1
                   DO i = 0, Nx                                           
-                        idx = (j-1) * (Nx + 1) + i                                 
+                        idx = (j) * (Nx - 1) + i                                 
                         !print *, idx                                 
-                        idy = (Nx + 1) * (Ny - 1) + (j - 1) * (Ny + 1) + i                            
+                        idy = (Nx + 1) * (Ny - 1) + (j) * (Ny - 1) + i                            
                         !print *, idy
 
                         ! Écriture de la matrice A pour Ex
                         cn%A(idx,idx) = 1 + 2.d0 * cn%bx**2               ! Termes diagonaux a1
-                        if (j > 1) cn%A(idx, idx_Ex(i,j-1)) = - cn%bx**2  ! Termes a1 hors diagonale
-                        if (j < Ny-1 ) cn%A(idx, idx_Ex(i,j+1)) = - cn%bx**2 ! Termes a1 hors diagonale
+                        if (j > 0) cn%A(idx, idx_Ex(i,j-1)) = - cn%bx**2  ! Termes a1 hors diagonale
+                        if (j < Ny ) cn%A(idx, idx_Ex(i,j+1)) = - cn%bx**2 ! Termes a1 hors diagonale
 
                         ! couplage Ey
                         if (i < Nx) cn%A(idx,idy_Ex(i + 1,j))     = + cn%bx * cn%by
 
                         cn%A(idx,idy_Ex(i,j))                     = - cn%bx * cn%by    
   
-                        if ( i < Nx .AND. j > 1 ) then
+                        if ( i < Nx .AND. j > 0 ) then
                               cn%A(idx,idy_Ex(i + 1,j - 1))       = - cn%bx * cn%by
                         end if
 
-                        if (j > 1) cn%A(idx,idy_Ex(i,j - 1))  = + cn%bx * cn%by
+                        if (j > 0) cn%A(idx,idy_Ex(i,j - 1))  = + cn%bx * cn%by
                   END DO
             END DO
+
+            if(display_it) then
+                  CALL display_matrix(cn%A, " A assemblée")
+            ENDIF
 
             ! On calcul en retirant x = 0 et x = Nx : PEC   
             DO i = 1, Nx-1
                   DO j = 0, Ny                                            ! i : 0 - > Nx et j 0 -> Ny
                         ! Écriture de la matrice A pour Ey
-                        idx = (i - 1) * (Ny + 1) + j
+                        idx = (i ) * (Ny - 1) + j
                         !print *, idx                                 
-                        idy = (Nx - 1) * (Ny + 1) + (i - 1) * (Ny + 1) + j                                 
+                        idy = (Nx - 1) * (Ny + 1) + (i ) * (Ny - 1) + j                                 
                         !print *, idy
                         cn%A(idy,idy) = 1 + 2.d0 * cn%by**2               ! Termes diagonaux a2
-                        if (i > 1) cn%A(idy, idy_Ey(i-1,j)) = - cn%by**2  ! Termes a2 hors diagonale
-                        if (i < Nx - 1) cn%A(idy, idy_Ey(i+1,j)) = - cn%by**2 ! Termes a2 hors diagonale
+                        if (i > 0) cn%A(idy, idy_Ey(i-1,j)) = - cn%by**2  ! Termes a2 hors diagonale
+                        if (i < Nx ) cn%A(idy, idy_Ey(i+1,j)) = - cn%by**2 ! Termes a2 hors diagonale
 
                         ! couplage Ex
                         if  (j < Ny) cn%A(idy,idx_Ey(i,j+1)) = + cn%bx * cn%by
 
                         cn%A(idy,idx_Ey(i,j))                = - cn%bx * cn%by    
 
-                        if ( i > 1 .AND. j < Ny ) then
+                        if ( i > 0 .AND. j < Ny ) then
                               cn%A(idy,idx_Ey(i-1,j+1))      = - cn%bx * cn%by
                         end if
 
-                        if (i > 1) cn%A(idy,idx_Ey(i-1,j))   = + cn%bx * cn%by
+                        if (i > 0) cn%A(idy,idx_Ey(i-1,j))   = + cn%bx * cn%by
 
                   END DO
             END DO
