@@ -95,24 +95,25 @@ MODULE fdtd
       INTEGER FUNCTION id_Ex(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            id_Ex = i * (Nx - 1) + (j - 1)
+            id_Ex = (j - 1) * (Nx + 1) + i
 
       END FUNCTION id_Ex
 
       INTEGER FUNCTION id_Ey(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            id_Ey = (Nx + 1) * (Ny - 1) + (i - 1) * (Ny - 1) + j
+            id_Ey = (Nx + 1) * (Ny - 1) + (i - 1) * (Ny + 1) + j
 
       END FUNCTION id_Ey
 
       SUBROUTINE compute_fdtd(cn)
             CLASS(cnfdtd), INTENT(inout) :: cn
             ! Variables locales
+            REAL(8), ALLOCATABLE :: Ex_new(:,:), Ey_new(:,:)
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
             INTEGER :: info
-            INTEGER :: n, m, nrhs, nvec, nrow, ncol
+            INTEGER :: n, m, nrhs
             INTEGER :: i,j, idx, idy
             INTEGER :: i1
             INTEGER :: snapshot
@@ -120,7 +121,8 @@ MODULE fdtd
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
-
+            ALLOCATE(Ex_new(0 : Nx, 1 : Ny - 1))
+            ALLOCATE(Ey_new(1 : Nx - 1, 0 : Ny))
             
             B_mat = 0.d0
 
@@ -152,17 +154,19 @@ MODULE fdtd
 
 
             ! Remplissage de la matrice A
-            ! CALCUL DIRECT DE LA MATRICE A
+            
+            ! On calcul en retirant y = 0 et y = Ny : PEC
+            ! On fait un remplissage en colonne de la matrice A
+            DO j = 1, Ny -1
+                  DO i = 0, Nx                                           
+                        idx = (j-1) * (Nx + 1) + i                                 
+                        !print *, idx                                 
+                        idy = (Nx + 1) * (Ny - 1) + (j - 1) * (Ny + 1) + i                              
+                        !print *, idy
 
-            DO i = 0, Nx
-                  DO j = 1, Ny-1                                            ! i : 0 - > Nx et j 0 -> Ny
-                        idx = id_Ex(i,j)
-                        print *, idx                                 ! idx = i * (Nx + 1) + j  parcourt : 0 -> Nx * (Nx + 1) + Ny 
-                        idy = id_Ey(i,j+1)                                 ! idy = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j  
-                        print *, idy
                         ! Écriture de la matrice A pour Ex
                         cn%A(idx,idx) = 1 + 2.d0 * cn%bx**2               ! Termes diagonaux Exx
-                        if (j > 1) cn%A(idx, id_Ex(i,j-1)) = - cn%bx**2  ! Termes Exx hors diagonale
+                        if (j > 0) cn%A(idx, id_Ex(i,j-1)) = - cn%bx**2  ! Termes Exx hors diagonale
                         if (j < Ny) cn%A(idx, id_Ex(i,j+1)) = - cn%bx**2 ! Termes Exx hors diagonale
 
                         ! couplage Ey
@@ -178,16 +182,16 @@ MODULE fdtd
                   END DO
             END DO
 
-                        
+            ! On calcul en retirant x = 0 et x = Nx : PEC   
             DO i = 1, Nx-1
                   DO j = 0, Ny                                            ! i : 0 - > Nx et j 0 -> Ny
                         ! Écriture de la matrice A pour Ey
-                        idx = id_Ex(i,j)
+                        idx = (i - 1) * (Ny + 1) + j
                         !print *, idx                                 
-                        idy = id_Ey(i,j)                                 
+                        idy = (Nx - 1) * (Ny + 1) + (i - 1) * (Ny + 1) + j                                 
                         !print *, idy
                         cn%A(idy,idy) = 1 + 2.d0 * cn%by**2               ! Termes diagonaux Eyy
-                        if (i > 1) cn%A(idy, id_Ey(i-1,j)) = - cn%by**2  ! Termes Eyy hors diagonale
+                        if (i > 0) cn%A(idy, id_Ey(i-1,j)) = - cn%by**2  ! Termes Eyy hors diagonale
                         if (i < Nx) cn%A(idy, id_Ey(i+1,j)) = - cn%by**2 ! Termes Eyy hors diagonale
 
                         ! couplage Ex
@@ -207,15 +211,10 @@ MODULE fdtd
 
             IF (display_it) then
                   CALL display_matrix(cn%A, " A assemblée")
-                  write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
             ENDIF
 
 
 
-
-            ! Affichage de la matrice A
-            ! CALL display_matrix(cn%A)
-            !---------------------------------------------------!
 
             ! Vérification de la symétrie de la matrice A
             !CALL matrix_sym(cn%A)
@@ -250,9 +249,7 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
             snapshot = 20
 
-            nrow = 2 * (Nx - 1)
-            ncol = Ny - 1
-            nvec = nrow * ncol
+           
             nrhs = 1
             m = 0
             i1 = Nx + 1
@@ -275,21 +272,18 @@ MODULE fdtd
                   
 
                   ! Second membre Ex
-                  DO i = 0,  Nx
+                  ! On fait un remplissage en colonne pour Ex, order = [1, 2] (i varie avant j)
+                  DO j = 1,  Ny - 1
                         !print *, "i = ", i
-                        DO j = 1, Ny-1
+                        DO i = 0, Nx
                               ! Détermine le bonne indice
-                              idx = i * (Nx - 1) + j-1
+                              idx = (j-1) * (Nx + 1) + i 
                               ! print *, "idx = ", idx, "i,j =", i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
-                                    cn%B(idx) = 0.d0
-                              else
-                                    cn%B(idx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                        & 
-                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
-                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
-                                                + 2.d0 * cn%Exx * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
-                              endif
+                              cn%B(idx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                        & 
+                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
+                                          - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
+                                          + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
+                                          + 2.d0 * cn%Exx * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
                         END DO
                   END DO
 
@@ -299,22 +293,18 @@ MODULE fdtd
 
 
                   ! Second membre Ey
+                  ! On fait un remplissage en ligne pour Ey, order = [2, 1] (j varie avant i)
                   DO i = 1 , Nx-1
                         !print *, "i = ", i
                         DO j = 0,  Ny
                               ! Détermine le bonne indice
-                              idy = (Nx+1)*(Ny-1) + (i-1) * (Ny + 1) + j
-                              ! print *, "idy = ", idy, 'i,j =', i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
-                                    cn%B(idy) = 0.d0
-                              else
+                              idy = (Nx + 1) * (Ny - 1) + (j - 1) * (Ny + 1) + i                              
                               ! Calcul du second membre Ey
-                                    cn%B(idy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
-                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
-                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )                 &
-                                                - 2.d0 * cn%Exx * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
-                               END IF
+                              cn%B(idy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
+                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
+                                          - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
+                                          + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )                 &
+                                          - 2.d0 * cn%Exx * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
                         END DO
                   END DO
                   !print *, "pass 3"
@@ -326,8 +316,17 @@ MODULE fdtd
                   !print *, "pass 4"
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
-                  B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  !B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  Ex_new = reshape( cn%B( 0 : (Nx + 1) * (Ny - 1) - 1 ), &
+                                    SHAPE = [Nx + 1, Ny - 1], &
+                                    ORDER = [1,2] ) ! Ex
 
+                  Ey_new = reshape( cn%B( (Nx - 1)*(Ny + 1) : (Nx - 1) * (Ny + 1) + (Nx - 1) * (Ny + 1) - 1), &
+                                    SHAPE = [Nx - 1, Ny + 1], &
+                                    ORDER = [2,1] ) ! Ey
+                  B_mat = 0.d0
+                  B_mat(0 : Nx, 1 : Ny - 1) = Ex_new
+                  B_mat(Nx + 1 + 1 : Nx + 1 + Nx - 1, 0 : Ny) = Ey_new
 
                   !print *, "pass 5"
 
