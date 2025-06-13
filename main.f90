@@ -10,14 +10,8 @@ PROGRAM main
       IMPLICIT NONE
             type(cnfdtd) :: cn
 
-
-      ! Module de test
-      ! CALL init_test()
-
       ! Début du programme
       CALL cn%init()
-
-
 
       ! Initialisation de la source
       CALL init_source()
@@ -29,12 +23,6 @@ PROGRAM main
       ! Libération de la mémoire
       CALL cn%freememory()
       CALL free_source()
-
-
-      
-
-
-
 
 
 END PROGRAM main

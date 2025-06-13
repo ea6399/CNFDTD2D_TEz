@@ -1,6 +1,10 @@
 FC      = gfortran
-FFLAGS  = -ffree-line-length-none -fbacktrace -Wall -Wextra -O2
+FFLAGS  = -ffree-line-length-none -fbacktrace -Wall -Wextra -O2 -fcheck=all -finit-real=zero
 LDLIBS  = -llapack -lblas
+
+ # -O2 -fcheck=all -x f95-cpp-input -finit-real=zero -fbacktrace
+
+
 
 SRC     = numerics.f90 source.f90 fdtd.f90 test.f90 main.f90
 OBJDIR  = obj
