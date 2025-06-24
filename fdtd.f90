@@ -96,7 +96,7 @@ MODULE fdtd
       INTEGER FUNCTION id_Ey(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            id_Ey = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j
+            id_Ey =  (Nx + 1) * (Ny + 1) +i * (Nx+1) + j
 
       END FUNCTION id_Ey
 
@@ -163,7 +163,7 @@ MODULE fdtd
                         ! couplage Ey
                         if (i < Nx) cn%A(idx,id_Ey(i + 1,j))     = + cn%bx * cn%by
 
-                        cn%A(idx,id_Ey(i,j))                     = - cn%bx * cn%by    
+                        cn%A(idx,idy)                     = - cn%bx * cn%by    
   
                         if ( i < Nx .AND. j > 0 ) then
                               cn%A(idx,id_Ey(i + 1,j - 1))       = - cn%bx * cn%by
@@ -192,26 +192,26 @@ MODULE fdtd
                   END DO
             END DO
 
-            ! Conditions limites PEC
-            DO i = 0, Nx
-            ! Bord bas (j=0)
-            k = id_Ex(i, 0)
-            cn%A(k, k) = 1.0d0
+            ! ! Conditions limites PEC
+            ! DO i = 0, Nx
+            ! ! Bord bas (j=0)
+            ! k = id_Ex(i, 0)
+            ! cn%A(k, k) = 1.0d0
             
-            ! Bord haut (j=Ny)
-            k = id_Ex(i, Ny)
-            cn%A(k, k) = 1.0d0
-            END DO
+            ! ! Bord haut (j=Ny)
+            ! k = id_Ex(i, Ny)
+            ! cn%A(k, k) = 1.0d0
+            ! END DO
 
-            DO j = 0, Ny
-            ! Bord gauche (i=0)
-            k = id_Ey(0, j)
-            cn%A(k, k) = 1.0d0
+            ! DO j = 0, Ny
+            ! ! Bord gauche (i=0)
+            ! k = id_Ey(0, j)
+            ! cn%A(k, k) = 1.0d0
             
-            ! Bord droit (i=Nx)
-            k = id_Ey(Nx, j)
-            cn%A(k, k) = 1.0d0
-            END DO
+            ! ! Bord droit (i=Nx)
+            ! k = id_Ey(Nx, j)
+            ! cn%A(k, k) = 1.0d0
+            ! END DO
 
 
             IF (display_it) then
@@ -243,6 +243,8 @@ MODULE fdtd
                   WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
                   STOP 'LU failed'
             END IF
+
+            CALL DGETRI(SIZE(cn%A,1), cn%A, SIZE(cn%A,1), ipiv, info)
             
 
             
