@@ -297,7 +297,7 @@ MODULE fdtd
                                                 + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
                                                 - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
                                                 + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
-                                                + 2.d0 * cn%Exx * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
+                                                + 2.d0 * cn%Exx * (cn%Hz(i,j) - cn%Hz(i, j-1))
                               endif
                         END DO
                   END DO
@@ -322,7 +322,7 @@ MODULE fdtd
                                                 + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
                                                 - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
                                                 + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )                 &
-                                                - 2.d0 * cn%Exx * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
+                                                - 2.d0 * cn%Exx * (cn%Hz(i,j) - cn%Hz(i-1, j))
                                END IF
                         END DO
                   END DO
