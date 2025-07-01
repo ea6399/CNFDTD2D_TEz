@@ -114,7 +114,7 @@ MODULE fdtd
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
             ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
-!            ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
+!           ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
 
             
             B_mat = 0.d0
@@ -218,17 +218,6 @@ MODULE fdtd
                   CALL display_matrix(cn%A, " A assemblée")
                   write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
             ENDIF
-
-
-
-
-            ! Affichage de la matrice A
-            ! CALL display_matrix(cn%A)
-            !---------------------------------------------------!
-
-            ! Vérification de la symétrie de la matrice A
-            !CALL matrix_sym(cn%A)
-            ! ! !---------------------------------------------------!
 
 
             ! -------------------------------------------------------------------!
