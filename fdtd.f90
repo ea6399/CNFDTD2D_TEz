@@ -4,8 +4,11 @@ MODULE fdtd
       USE source
 
       IMPLICIT NONE
-      ! Déclaration de variables
+      INCLUDE 'mpif.h'
+      INCLUDE 'dmumps_struc.h'
 
+      IMPLICIT NONE
+      ! Déclaration de variables
       ! Class fdtd
       TYPE :: cnfdtd
                   ! Variables locales
@@ -17,13 +20,15 @@ MODULE fdtd
                   REAL(8), ALLOCATABLE :: J(:,:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
-                  REAL(8) :: Exx, Eyy, bx, by
+                  REAL(8) :: a1, a2, bx, by
             CONTAINS
                   ! Méthodes
                   PROCEDURE :: init
                   PROCEDURE :: compute_fdtd
                   PROCEDURE :: freememory
       END TYPE cnfdtd
+      ! MUMPS
+      TYPE(dmumps_struc) :: mumps
 
       CONTAINS
 
@@ -62,16 +67,16 @@ MODULE fdtd
 
             WRITE(*, '(/,T5, A,F17.12, /)') 'Courant number cdt/dx = ', abs(c * cn%dt / cn%dx)
 
-            cn%Exx = cn%dt / (2.d0 * epsilon_0) 
-            cn%Eyy = cn%dt / (2.d0 * mu_0)
+            cn%a1 = cn%dt / (2.d0 * epsilon_0) 
+            cn%a2 = cn%dt / (2.d0 * mu_0)
             cn%bx = c * cn%dt / (2.d0 * cn%dx)
             cn%by = c * cn%dt / (2.d0 * cn%dy)
             WRITE(*, '(/,T5,A,ES17.3, /)') 'bx = ',cn%bx
             WRITE(*, '(/,T5,A,ES17.3, /)') 'by = ',cn%by
-            WRITE(*, '(/,T5,A,ES17.3, /)') 'Exx = ', cn%Exx
-            WRITE(*, '(/,T5,A,ES17.3, /)') 'Exx/dx = ', cn%Exx / cn%dx
-            WRITE(*, '(/,T5,A,ES17.3, /)') 'Eyy = ', cn%Eyy
-            WRITE(*, '(/,T5,A,ES17.3, /)') 'Eyy/dx = ', cn%Eyy / cn%dx
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'a1 = ', cn%a1
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'a1/dx = ', cn%a1 / cn%dx
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'a2 = ', cn%a2
+            WRITE(*, '(/,T5,A,ES17.3, /)') 'a2/dx = ', cn%a2 / cn%dx
 
             ! Initialisation des champs
             cn%A = 0.d0
@@ -101,33 +106,22 @@ MODULE fdtd
       END FUNCTION id_Ey
 
       SUBROUTINE compute_fdtd(cn)
+            ! Class
             CLASS(cnfdtd), INTENT(inout) :: cn
+      
             ! Variables locales
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
             INTEGER :: info
-            INTEGER :: n, m, nrhs, nvec, nrow, ncol
+            INTEGER :: n, m, nvec, nrow, ncol
             INTEGER :: i,j, idx, idy, k
             INTEGER :: i1
             INTEGER :: snapshot
             REAL(8), ALLOCATABLE :: B_mat(:,:)
-            INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
-
-            ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
-!           ALLOCATE(rhs_mat(0 : 2 * (Nx - 1) - 1, 0:Ny - 1))
-
-            
-            B_mat = 0.d0
-
-            WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = "          ,  shape(cn%A)
-            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = "          ,  shape(cn%B)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = "      ,  shape(B_mat)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = "         ,  shape(cn%Ex)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = "         ,  shape(cn%Ey)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = "         ,  shape(cn%Hz)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = "          ,  shape(cn%J)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = "       ,  shape(ipiv)
+            ! Mumps variables
+            INTEGER :: npms, nnz, irn, jcn 
+            REAL(8), ALLOCATABLE :: diag_x(:), diag_y(:), subdiag_x(:), subdiag_y(:)
+            REAL(8), ALLOCATABLE :: diag_xy(:), updiag_xy(:), uupdiag_xy(:) 
 
 
             m = 0
@@ -144,100 +138,47 @@ MODULE fdtd
                         !   Eyx    !   Eyy    !
                         ! -------- ! -------- !
 
+            ! Allocation et initialisation des diagonales
+            ALLOCATE(diag_x(0: Nx))
+            ALLOCATE(diag_y(0: Nx))
+            ALLOCATE(subdiag_x(0:, subdiag_y(:) Nx - 1))
+            diag_x = 0.d0
+            diag_y = 0.d0
+            subdiag_x = 0.d0
+
+            ALLOCATE(diag_xy(0:Nx))
+            ALLOCATE(updiag_xy(0:Nx - 1))
+            ALLOCATE(uupdiag_xy(0:Nx - 2))
+            diag_xy = 0.d0
+            updiag_xy = 0.d0
+            uupdiag_xy = 0.d0
+
+            ! Computation des coefficients de la matrice A
+            diag_x = 1.d0 + 2.d0 * cn%bx**2
+            diag_y = 1.d0 + 2.d0 * cn%by**2
+            subdiag_x = - cn%bx**2
+            subdiag_y = - cn%by**2
+
+            diag_xy = - cn%bx * cn%by
+            updiag_xy = 2.d0 *  cn%bx * cn%by
+            uupdiag_xy = - cn%bx * cn%by
 
 
-            ! Remplissage de la matrice A
-            ! CALCUL DIRECT DE LA MATRICE A
+            !------------------------------------------------------------------!
+            !------------------------ Entering MUMPS --------------------------!
+            !------------------------------------------------------------------!
 
-            DO i = 0, Nx
-                  DO j = 0, Ny                                            ! i : 0 - > Nx et j 0 -> Ny
-                        idx = id_Ex(i,j)
-                        !print *, idx                                 ! idx = i * (Nx + 1) + j  parcourt : 0 -> Nx * (Nx + 1) + Ny 
-                        idy = id_Ey(i,j)                                 ! idy = (Nx + 1) * (Ny + 1) + i * (Nx+1) + j  
-                        !print *, idy
-                        ! Écriture de la matrice A pour Ex
-                        cn%A(idx,idx) = 1 + 2.d0 * cn%bx**2               ! Termes diagonaux Exx
-                        if (j > 0) cn%A(idx, id_Ex(i,j-1)) = - cn%bx**2  ! Termes Exx hors diagonale
-                        if (j < Ny) cn%A(idx, id_Ex(i,j+1)) = - cn%bx**2 ! Termes Exx hors diagonale
+            WRITE(*,'(/,/,/,/,/,"Entering MUMPS Solver",/,/,/,/,/)')
 
-                        ! couplage Ey
-                        if (i < Nx) cn%A(idx,id_Ey(i + 1,j))     = + cn%bx * cn%by
+            mumps%COMM = 0                ! 0 pour séquentiel
+            mumps%SYM  = 2                ! 2 pour symétrique général
+            mumps%PAR  = 1                ! 1 : L'host est le seul processeur
 
-                        cn%A(idx,idy)                     = - cn%bx * cn%by    
-  
-                        if ( i < Nx .AND. j > 0 ) then
-                              cn%A(idx,id_Ey(i + 1,j - 1))       = - cn%bx * cn%by
-                        end if
+            !-----------------------------!
+            ! Initialisation d'un package !
+            !-----------------------------!
 
-                        if (j > 0) cn%A(idx,id_Ey(i,j - 1))  = + cn%bx * cn%by
-                        
-                        
-
-                        ! Écriture de la matrice A pour Ey
-                        cn%A(idy,idy) = 1 + 2.d0 * cn%by**2               ! Termes diagonaux Eyy
-                        if (i > 0) cn%A(idy, id_Ey(i-1,j)) = - cn%by**2  ! Termes Eyy hors diagonale
-                        if (i < Nx) cn%A(idy, id_Ey(i+1,j)) = - cn%by**2 ! Termes Eyy hors diagonale
-
-                        ! couplage Ex
-                        if  (j < Ny) cn%A(idy,id_Ex(i,j+1)) = + cn%bx * cn%by
-
-                        cn%A(idy,id_Ex(i,j))                = - cn%bx * cn%by    
-
-                        if ( i > 0 .AND. j < Ny ) then
-                              cn%A(idy,id_Ex(i-1,j+1))      = - cn%bx * cn%by
-                        end if
-
-                        if (i > 0) cn%A(idy,id_Ex(i-1,j))   = + cn%bx * cn%by
-
-                  END DO
-            END DO
-
-            ! ! Conditions limites PEC
-            ! DO i = 0, Nx
-            ! ! Bord bas (j=0)
-            ! k = id_Ex(i, 0)
-            ! cn%A(k, k) = 1.0d0
-            
-            ! ! Bord haut (j=Ny)
-            ! k = id_Ex(i, Ny)
-            ! cn%A(k, k) = 1.0d0
-            ! END DO
-
-            ! DO j = 0, Ny
-            ! ! Bord gauche (i=0)
-            ! k = id_Ey(0, j)
-            ! cn%A(k, k) = 1.0d0
-            
-            ! ! Bord droit (i=Nx)
-            ! k = id_Ey(Nx, j)
-            ! cn%A(k, k) = 1.0d0
-            ! END DO
-
-
-            IF (display_it) then
-                  CALL display_matrix(cn%A, " A assemblée")
-                  write(*, '(/,t5,A)') " Extraction de la matrice intérieur A :"
-            ENDIF
-
-
-            ! -------------------------------------------------------------------!
-            ! ------------------ Décomposition LU de A --------------------!
-            ! -------------------------------------------------------------------!
-
-            CALL DGETRF(size(cn%A,1), SIZE(cn%A,2),cn%A, size(cn%A,1),ipiv, info)
-            IF (info > 0) THEN
-                  WRITE(*,'(/,T5,A,I0,A,I0,A,/)') 'U(', info , ',', info ,') is exactly zero. The factorization has been completed, but the factor U is exactly singular.'
-                  STOP 'LU failed'
-            ELSE IF (info < 0) THEN
-                  WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
-                  STOP 'LU failed'
-            END IF
-
-            CALL DGETRI(SIZE(cn%A,1), cn%A, SIZE(cn%A,1), ipiv, info)
-            
-
-            
-
+      
 
             ! Ouverture du fichier de sortie
             OPEN(idfile , file = "data/Ex.txt", status = "replace", action = "write", form = "formatted")
@@ -250,12 +191,8 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
             snapshot = 20
 
-            nrow = 2 * (Nx - 1)
-            ncol = Ny - 1
-            nvec = nrow * ncol
-            nrhs = 1
             m = 0
-            i1 = Nx + 1
+
             DO n = 0, Nt - 1
 
                   IF (MOD(n,5*snapshot) == 0) THEN
@@ -288,7 +225,7 @@ MODULE fdtd
                                                 + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
                                                 - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
                                                 + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
-                                                + 2.d0 * cn%Exx * (cn%Hz(i,j) - cn%Hz(i, j-1))
+                                                + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
                               endif
                         END DO
                   END DO
@@ -313,17 +250,13 @@ MODULE fdtd
                                                 + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
                                                 - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
                                                 + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )                 &
-                                                - 2.d0 * cn%Exx * (cn%Hz(i,j) - cn%Hz(i-1, j))
+                                                - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
                                END IF
                         END DO
                   END DO
                   !print *, "pass 3"
 
                   
-
-                  ! Résolution du système linéaire
-                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%B), info)
-                  !print *, "pass 4"
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
                   B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
@@ -337,9 +270,9 @@ MODULE fdtd
 
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%Eyy / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
                                                                         + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
-                                                      - cn%Eyy / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
+                                                      - cn%a2 / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
                                                                         + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
                         END DO
                   END DO
@@ -372,13 +305,6 @@ MODULE fdtd
                   
             END DO
 
-            ! WRITE(*, '(/, T5, A, /)') "Test reshape du vecteur B :"
-            ! print *, "shape(B_mat) = ", shape(B_mat)
-
-            ! WRITE(*,'(2(AX,F16.10))') 'B(0)=',cn%B(0),' B_mat(0,0)=',B_mat(0,0)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(1)=',cn%B(1),' B_mat(0,1)=',B_mat(0,1)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(19)=',cn%B(19),' B_mat(3,3)=',B_mat(3,3)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(Ny+1)=',cn%B(Ny+1),' B_mat(1,0)=',B_mat(1,0)
 
             WRITE(*, '(/, t5, A, I5)') "Nombre de blocs : ", m
             
