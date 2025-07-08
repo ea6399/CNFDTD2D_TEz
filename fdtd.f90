@@ -333,8 +333,8 @@ MODULE fdtd
                   cn%Hz(0 ,:)  = cn%Hz(1,:)             ! Bord gauche
                   cn%Hz(Nx,:)  = cn%Hz(Nx-1,:)          ! Bord droit
 
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
+                  DO i = 0, Nx-1
+                        DO j = 0, Ny-1
                               cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
                                                                         + cn%Ex(i, j + 1) - cn%Ex(i,j) )                   &
                                                       - cn%a2 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
@@ -353,10 +353,11 @@ MODULE fdtd
                  
                   
 
+                  ! On parcourt l'entierté des champs Ex et Ey
                   ! Second membre Ex
-                  DO i = 0,  Nx - 1
+                  DO i = 1,  Nx-1
                         !print *, "i = ", i
-                        DO j = 1, Ny -1
+                        DO j = 1, Ny-1
                               ! Détermine le bonne indice
                               idx_Ex = i * (Nx + 1) + j
                               ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
@@ -365,7 +366,6 @@ MODULE fdtd
                                           - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )                &
                                           + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )            &
                                           + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
-                              
                         END DO
                   END DO
 
@@ -377,13 +377,13 @@ MODULE fdtd
 
 
                   ! Second membre Ey
-                  DO i = 1 , Nx - 1
+                  DO i = 1 , Nx-1
                         !print *, "i = ", i
-                        DO j = 0,  Ny - 1
+                        DO j = 1,  Ny - 1
                               ! Détermine le bonne indice
                               idx_Ey = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
                               ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
-                              ! Calcul du second membre Ex
+                              ! Calcul du second membre Ey
                               cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
                                           + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
                                           - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
@@ -392,6 +392,8 @@ MODULE fdtd
                         END DO
                   END DO
                   !print *, "pass 3"
+
+                  
                   
 
                   ! Résolution du système linéaire
@@ -431,7 +433,7 @@ MODULE fdtd
                         DO i = 0, Nx, 2
                               DO j = 0, Ny, 2
                                     WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
-                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Ey(i,j)
+                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Ex(i,j)
                               END DO
                               WRITE(idfile + 1, *)
                               write(idfile    , *)
