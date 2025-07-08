@@ -101,7 +101,7 @@ MODULE fdtd
       INTEGER FUNCTION id_Ey(i,j)
             INTEGER, INTENT(in) :: i,j
 
-            id_Ey =  (Nx + 1) * (Ny + 1) +i * (Nx+1) + j
+            id_Ey =  (Nx + 1) * (Ny + 1) + i * (Nx+1) + j
 
       END FUNCTION id_Ey
 
@@ -114,12 +114,12 @@ MODULE fdtd
             LOGICAL :: display_it
             INTEGER :: info
             INTEGER :: n, m, nvec, nrow, ncol
-            INTEGER :: i,j, idx, idy, k
+            INTEGER :: i,j, idx, idy, k, id_nz
             INTEGER :: i1
             INTEGER :: snapshot
-            REAL(8), ALLOCATABLE :: B_mat(:,:)
+            REAL(8), ALLOCATABLE :: X(:,:)
             ! Mumps variables
-            INTEGER :: npms, nnz, irn, jcn 
+            INTEGER :: nmps, nnz, irn, jcn 
             REAL(8), ALLOCATABLE :: diag_x(:), diag_y(:), subdiag_x(:), subdiag_y(:)
             REAL(8), ALLOCATABLE :: diag_xy(:), updiag_xy(:), uupdiag_xy(:) 
 
@@ -177,6 +177,31 @@ MODULE fdtd
             !-----------------------------!
             ! Initialisation d'un package !
             !-----------------------------!
+            ! On résout AX = B, B ayant Ny + 1 colonnes, et 2 * (Nx + 1 ) lignes
+            ! | Ex |
+            ! | Ey |
+
+            mumps%JOB = -1               ! Initialisation de MUMPS
+            CALL DMUMPS(mumps)
+
+            ! Parametrage de la matrice A
+            nrow = 2 * (Nx + 1)
+            ncol = 2 * (Ny + 1)
+            mumps%N = 2 * nrow * ncol ! Nombre de lignes x Nombres de colonnes
+            mumps%NNZ = 2 * (Nx + 1 + Nx + Nx) + 2 * (Nx + 1 + Nx + Nx - 1)
+            nnz = mumps%NNZ
+
+            ! Allocation des tableaux
+            ALLOCATE(mumps%IRN(0:nnz - 1))
+            ALLOCATE(mumps%JCN(0:nnz - 1))
+            ALLOCATE(mumps%A(0:nnz - 1))
+            mumps%IRN = 0
+            mumps%JCN = 0
+            mumps%A = 0.d0
+
+            ! Matrice principales
+            ! Stockage des coefficients Ex-Ex 
+            ! Ex - Ex
 
       
 
