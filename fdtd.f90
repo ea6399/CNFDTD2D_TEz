@@ -321,7 +321,31 @@ MODULE fdtd
                   !--------------------------------------------------------------!
                   !------------------- Ecriture du vecteur B --------------------!
                   !--------------------------------------------------------------!
-                  ! On enregistre les résultats du temps précédent
+                 
+
+                   ! Mise à jour explicite de Hz
+                  !Injection de source
+                  cn%Hz(i_src,j_src) = Esrc(n)
+
+                                    ! CDT DE BORD / PEC
+                  cn%Hz(: ,0)  = cn%Hz(:, 1)            ! Bord inférieur
+                  cn%Hz(: ,Ny) = cn%Hz(:,Ny-1)          ! Bord supérieur
+                  cn%Hz(0 ,:)  = cn%Hz(1,:)             ! Bord gauche
+                  cn%Hz(Nx,:)  = cn%Hz(Nx-1,:)          ! Bord droit
+
+                  DO i = 1, Nx-1
+                        DO j = 1, Ny-1
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j) )                   &
+                                                      - cn%a2 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
+                        END DO
+                  END DO
+
+
+
+
+                   ! On enregistre les résultats du temps précédent
                   cn%Ex = B_pec(0 : Nx, 0 : Ny)
                   cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
                   !print * , "pass 1"
@@ -368,7 +392,6 @@ MODULE fdtd
                         END DO
                   END DO
                   !print *, "pass 3"
-
                   
 
                   ! Résolution du système linéaire
@@ -378,31 +401,20 @@ MODULE fdtd
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
                   B_pec = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
 
-                  ! condition de bord / PEC
-                  ! bord inférieur et supérieur
-                  B_pec(0:Nx,0)        = 0.d0
-                  B_pec(0:Nx,Ny)       = 0.0d0
-                  ! Bord gauche et droite
-                  B_pec(Nx + 1,1:Ny)   = 0.d0
-                  B_pec(2*Nx + 1,1:Ny) = 0.0d0
+                  ! CONDITION DE BORD / PEC
+                  B_pec(:,0)         = 0.d0
+                  B_pec(:,Ny)        = 0.d0
+                  B_pec(Nx + 1, :)   = 0.d0
+                  B_pec(2* (Nx + 1), :) = 0.d0
+
+                  
                   !print *, "pass 5"
 
                   !print *, "pass 6"
 
 
 
-                  ! Mise à jour explicite de Hz
-                  !Injection de source
-                  cn%Hz(i_src,j_src) = Esrc(n)
-
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j) )               &
-                                                      - cn%a2 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
-                        END DO
-                  END DO
+                 
 
 
 
@@ -419,10 +431,13 @@ MODULE fdtd
                         DO i = 0, Nx, 2
                               DO j = 0, Ny, 2
                                     WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
+                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Ey(i,j)
                               END DO
                               WRITE(idfile + 1, *)
+                              write(idfile    , *)
                         END DO 
                         WRITE(idfile + 1, *)    
+                        WRITE(idfile    , *)
                   END IF
                   ! ! !---------------------------------------------------!
 
