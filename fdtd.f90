@@ -102,8 +102,6 @@ MODULE fdtd
             REAL(8), ALLOCATABLE :: Eyy(:,:)
             REAL(8), ALLOCATABLE :: Exy(:,:)
             REAL(8), ALLOCATABLE :: Eyx(:,:)
-            REAL(8), ALLOCATABLE :: B_mat(:,:)
-            REAL(8), ALLOCATABLE :: A_pec(:,:)
             REAL(8), ALLOCATABLE :: B_pec(:,:)
 
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
@@ -112,15 +110,15 @@ MODULE fdtd
             ALLOCATE(Eyy(0:Nx, 0:Ny))
             ALLOCATE(Exy(0:Nx, 0:Ny))
             ALLOCATE(Eyx(0:Nx, 0:Ny))
-            ALLOCATE(B_mat(0:2 * Nx + 1, 0:Ny))
+            ALLOCATE(B_pec(0:2 * Nx + 1, 0:Ny))
 
-            Exx = 0.d0; Eyy = 0.d0; Exy = 0.d0; Eyx = 0.d0; B_mat = 0.d0; ipiv = 0
+            Exx = 0.d0; Eyy = 0.d0; Exy = 0.d0; Eyx = 0.d0; B_pec = 0.d0; ipiv = 0
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = "    ,  shape(cn%A)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = "  ,  shape(Exx)
             WRITE(*,'(/, T5, A, I15X)')    "shape(B) = "    ,  shape(cn%B)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_mat) = ",  shape(B_mat)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_pec) = ",  shape(B_pec)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = "   ,  shape(cn%Ex)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = "   ,  shape(cn%Ey)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = "   ,  shape(cn%Hz)
@@ -129,7 +127,7 @@ MODULE fdtd
 
             
             m = 0
-            display_it = .TRUE.  
+            display_it = .FALSE.  
             charac = ""   
 
 
@@ -169,21 +167,7 @@ MODULE fdtd
             !----------------------------------------------------!
             !------------------ Sous matrice Eyy -----------------!
             !----------------------------------------------------!     
-                  Eyy(0,0) = 1.0d0 + 2.d0 * cn%by**2
-                  Eyy(0,1) = - cn%by**2
-
-                  DO i = 1, Nx - 1
-                        Eyy(i,i-1) = - cn%by**2 
-                        Eyy(i,i)   = 1.0d0 + 2.d0 * cn%by**2
-                        Eyy(i,i+1) = - cn%by**2
-                  END DO
-
-                  Eyy(Nx, Nx-1) =  - cn%by**2
-                  Eyy(Nx, Nx) = 1.0d0 + 2.d0 * cn%by**2
-
-
-
-
+            Eyy = Exx
 
             ! ! Affichage de la matrice Eyy
             IF (display_it) THEN
@@ -197,22 +181,16 @@ MODULE fdtd
             !------------------ Sous matrice Exy -----------------!
             !----------------------------------------------------!
 
-                  Exy(0,0) =  1.d0
-                  Exy(0,2) = -1.d0
-                  Exy(2,0) = -1.d0
-                  Exy(1,1) =  2.d0
-
-                  DO i = 1, Nx-2
+                  DO i = 0, Nx-2
                         j = i
-                        Exy(i-1,j+1) =  -1.d0
-                        Exy(i , i)   =   2.d0
-                        Exy(i+2 , i) =  -1.d0
+                        Exy(i , j)     =  -1.d0
+                        Exy(i , j + 1) =   2.d0
+                        Exy(i , j + 2) =  -1.d0
                   END DO 
 
-                  Exy(Nx-1,Nx-1) =  2.d0
-                  Exy(Nx, Nx - 2)= -1.d0
-                  Exy(Nx - 2, Nx) = -1.d0 
-                  Exy(Nx, Nx)    =  1.d0
+                  Exy(Nx-1,Nx-1)    = - 1.d0
+                  Exy(Nx-1, Nx)     =   2.d0
+                  Exy(Nx, Nx)       = - 1.d0
 
                   Exy = cn%bx * cn%by * Exy
                   
@@ -228,7 +206,7 @@ MODULE fdtd
             !------------------ Sous matrice Eyx -----------------!
             !----------------------------------------------------!
 
-                  Eyx = -transpose(Exy)
+                  Eyx = transpose(Exy)
 
 
 
@@ -340,37 +318,37 @@ MODULE fdtd
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
                   END IF
 
-                  cn%J(i_src, j_src) =  Esrc(n)
-
                   !--------------------------------------------------------------!
                   !------------------- Ecriture du vecteur B --------------------!
                   !--------------------------------------------------------------!
                   ! On enregistre les résultats du temps précédent
-                  cn%Ex = B_mat(0 : Nx, 0 : Ny)
-                  cn%Ey = B_mat(i1 : i1 + Nx, 0 : Ny)
+                  cn%Ex = B_pec(0 : Nx, 0 : Ny)
+                  cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
                   !print * , "pass 1"
 
                  
                   
 
                   ! Second membre Ex
-                  DO i = 0,  Nx - 2
+                  DO i = 0,  Nx - 1
                         !print *, "i = ", i
-                        DO j = 0, Ny - 2
+                        DO j = 0, Ny 
                               ! Détermine le bonne indice
-                              idx_Ex = i * (Nx - 1) + j
-                              ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
+                              idx_Ex = i * (Nx + 1) + j
+                              IF ( j == 0 .OR. j == Ny ) THEN
                                     cn%B(idx_Ex) = 0.d0
-                              else
+                              ELSE
+                              ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
                                     cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
                                                 + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j + 1) - cn%Ey(i - 1, j + 1) )         &
-                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i - 1, j - 1) )         &
-                                                + 2.d0 * cn%a1 * (cn%Hz(i,j+1) - cn%Hz(i, j-1))
-                              endif
+                                                - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )                &
+                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )            &
+                                                + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
+                              END IF
                         END DO
                   END DO
+
+
 
                   !print *, "pass 2"
 
@@ -378,22 +356,22 @@ MODULE fdtd
 
 
                   ! Second membre Ey
-                  DO i = 0 , Nx
+                  DO i = 0 , Nx 
                         !print *, "i = ", i
-                        DO j = 0,  Ny
+                        DO j = 0,  Ny - 1
                               ! Détermine le bonne indice
-                              idx_Ey = (Nx-1)*(Ny-1) + i * (Nx - 1) + j
+                              idx_Ey = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
                               ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
-                                    cn%B(idx_Ey) = 0.d0
-                              else
-                              ! Calcul du second membre Ey
+                              IF ( i == 0 .OR. i == Nx) THEN
+                                    cn%B(idx_Ey) = 0.0d0
+                              ELSE
+                              ! Calcul du second membre Ex
                                     cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
                                                 + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                                - cn%bx*cn%by * ( cn%Ex(i + 1 , j + 1) - cn%Ex(i + 1 , j - 1)  )         &
-                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)    - cn%Ex(i-1, j) )                 &
-                                                - 2.d0 * cn%a1 * (cn%Hz(i+1,j) - cn%Hz(i-1, j))
-                               END IF
+                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
+                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
+                                                - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
+                              END IF
                         END DO
                   END DO
                   !print *, "pass 3"
@@ -405,15 +383,16 @@ MODULE fdtd
                   !print *, "pass 4"
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
-                  B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  B_pec = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
 
+                  ! condition de bord / PEC
+                  ! bord inférieur et supérieur
+                  B_pec(0:Nx,0)        = 0.d0
+                  B_pec(0:Nx,Ny)       = 0.0d0
+                  ! Bord gauche et droite
+                  B_pec(Nx + 1,1:Ny)   = 0.d0
+                  B_pec(2*Nx + 1,1:Ny) = 0.0d0
                   !print *, "pass 5"
-                  
-
-                  
-
-                  ! Injection de la source
-                  B_mat = B_mat + cn%J
 
                   !print *, "pass 6"
 
@@ -423,12 +402,15 @@ MODULE fdtd
 
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
-                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
-                                                      - cn%a2 / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
-                                                                        + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j) )               &
+                                                      - cn%a2 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
                         END DO
                   END DO
+
+                  !Injection de source
+                  cn%Hz(i_src,j_src) = Esrc(n)
 
                   !print *, "pass 7"
 
@@ -457,12 +439,12 @@ MODULE fdtd
             END DO
 
             ! WRITE(*, '(/, T5, A, /)') "Test reshape du vecteur B :"
-            ! print *, "shape(B_mat) = ", shape(B_mat)
+            ! print *, "shape(B_pec) = ", shape(B_pec)
 
-            ! WRITE(*,'(2(AX,F16.10))') 'B(0)=',cn%B(0),' B_mat(0,0)=',B_mat(0,0)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(1)=',cn%B(1),' B_mat(0,1)=',B_mat(0,1)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(19)=',cn%B(19),' B_mat(3,3)=',B_mat(3,3)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(Ny+1)=',cn%B(Ny+1),' B_mat(1,0)=',B_mat(1,0)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(0)=',cn%B(0),' B_pec(0,0)=',B_pec(0,0)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(1)=',cn%B(1),' B_pec(0,1)=',B_pec(0,1)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(19)=',cn%B(19),' B_pec(3,3)=',B_pec(3,3)
+            ! WRITE(*,'(2(AX,F16.10))') 'B(Ny+1)=',cn%B(Ny+1),' B_pec(1,0)=',B_pec(1,0)
 
             WRITE(*, '(/, t5, A, I5)') "Nombre de blocs : ", m
             

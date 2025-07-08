@@ -15,7 +15,8 @@ set xlabel "x"
 set ylabel "y"
 set title "Animation Hz"
 
-block = 50
-
-splot 'data/Hz.txt' index block matrix with image
-
+# boucle sur chaque carte index k
+do for [k=0:nblocks-1] {
+    splot 'data/Hz.txt' index k matrix with image
+    pause 0.001
+}
