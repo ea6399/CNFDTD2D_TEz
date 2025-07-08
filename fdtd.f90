@@ -332,19 +332,16 @@ MODULE fdtd
                   ! Second membre Ex
                   DO i = 0,  Nx - 1
                         !print *, "i = ", i
-                        DO j = 0, Ny 
+                        DO j = 1, Ny -1
                               ! Détermine le bonne indice
                               idx_Ex = i * (Nx + 1) + j
-                              IF ( j == 0 .OR. j == Ny ) THEN
-                                    cn%B(idx_Ex) = 0.d0
-                              ELSE
                               ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
-                                    cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
-                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )                &
-                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )            &
-                                                + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
-                              END IF
+                              cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
+                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
+                                          - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )                &
+                                          + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )            &
+                                          + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
+                              
                         END DO
                   END DO
 
@@ -356,22 +353,18 @@ MODULE fdtd
 
 
                   ! Second membre Ey
-                  DO i = 0 , Nx 
+                  DO i = 1 , Nx - 1
                         !print *, "i = ", i
                         DO j = 0,  Ny - 1
                               ! Détermine le bonne indice
                               idx_Ey = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
                               ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
-                              IF ( i == 0 .OR. i == Nx) THEN
-                                    cn%B(idx_Ey) = 0.0d0
-                              ELSE
                               ! Calcul du second membre Ex
-                                    cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
-                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
-                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
-                                                - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
-                              END IF
+                              cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
+                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
+                                          - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
+                                          + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
+                                          - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
                         END DO
                   END DO
                   !print *, "pass 3"
@@ -399,6 +392,8 @@ MODULE fdtd
 
 
                   ! Mise à jour explicite de Hz
+                  !Injection de source
+                  cn%Hz(i_src,j_src) = Esrc(n)
 
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
@@ -409,8 +404,7 @@ MODULE fdtd
                         END DO
                   END DO
 
-                  !Injection de source
-                  cn%Hz(i_src,j_src) = Esrc(n)
+
 
                   !print *, "pass 7"
 
