@@ -12,11 +12,9 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: N_d(:)
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
-                  REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
-                  REAL(8), ALLOCATABLE :: B(:), rhs(:) 
-                  REAL(8), ALLOCATABLE :: J(:,:)
+                  REAL(8), ALLOCATABLE :: Hx(:,:), Hy(:,:), Ez(:,:)
+                  REAL(8), ALLOCATABLE :: rhs(:)
                   REAL(8), ALLOCATABLE :: A(:,:)
-                  REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
                   REAL(8) :: a1, a2, bx, by
             CONTAINS
                   ! Méthodes
@@ -34,15 +32,12 @@ MODULE fdtd
             ! Initialisation des variables
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
-            ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%B   (                      0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
-            ALLOCATE(cn%rhs (                      0 : 2 * (Nx - 1) * (Ny - 1) - 1        ) )               ! Pour matrice A intérieur
-            ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
-            ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
+            ALLOCATE(cn%Hx  (                    0:Nx, 0:Ny                               ) )
+            ALLOCATE(cn%Hy  (                    0:Nx, 0:Ny                               ) )
+            ALLOCATE(cn%rhs   (                      0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
+            ALLOCATE(cn%Ez  (                 0 : Nx , 0:Ny                               ) )
             ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )
-            ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
+
 
             cn%N_d = (/ (10*i, i = 0,10) /)
             ! PRINT *, 'N_d = ', cn%N_d
@@ -76,13 +71,10 @@ MODULE fdtd
 
             ! Initialisation des champs
             cn%A = 0.d0
-            cn%B = 0.d0
-            cn%J = 0.d0
-            cn%Ex = 0.d0
-            cn%Ey = 0.d0
-            cn%Hz = 0.d0
-            cn%c_E = 1.0d0 / (epsilon_0 * cn%dx)
-            cn%c_H = 1.0d0 / (mu_0 * cn%dx)
+            cn%rhs = 0.d0
+            cn%Hx = 0.d0
+            cn%Hy = 0.d0
+            cn%Ez = 0.d0
 
 
       END SUBROUTINE init
@@ -97,32 +89,31 @@ MODULE fdtd
             INTEGER :: i,j
             INTEGER :: i0,j0,i1,j1
             INTEGER :: snapshot
-            INTEGER :: idx_Ex, idx_Ey
-            REAL(8), ALLOCATABLE :: Exx(:,:)
-            REAL(8), ALLOCATABLE :: Eyy(:,:)
-            REAL(8), ALLOCATABLE :: Exy(:,:)
-            REAL(8), ALLOCATABLE :: Eyx(:,:)
+            INTEGER :: idx_Hx, idx_Hy
+            REAL(8), ALLOCATABLE :: Hxx(:,:)
+            REAL(8), ALLOCATABLE :: Hyy(:,:)
+            REAL(8), ALLOCATABLE :: Hxy(:,:)
+            REAL(8), ALLOCATABLE :: Hyx(:,:)
             REAL(8), ALLOCATABLE :: B_pec(:,:)
 
             INTEGER :: ipiv(SIZE(cn%A,1))       ! Sert de pivot
 
-            ALLOCATE(Exx(0:Nx, 0:Ny))
-            ALLOCATE(Eyy(0:Nx, 0:Ny))
-            ALLOCATE(Exy(0:Nx, 0:Ny))
-            ALLOCATE(Eyx(0:Nx, 0:Ny))
+            ALLOCATE(Hxx(0:Nx, 0:Ny))
+            ALLOCATE(Hyy(0:Nx, 0:Ny))
+            ALLOCATE(Hxy(0:Nx, 0:Ny))
+            ALLOCATE(Hyx(0:Nx, 0:Ny))
             ALLOCATE(B_pec(0:2 * Nx + 1, 0:Ny))
 
-            Exx = 0.d0; Eyy = 0.d0; Exy = 0.d0; Eyx = 0.d0; B_pec = 0.d0; ipiv = 0
+            Hxx = 0.d0; Hyy = 0.d0; Hxy = 0.d0; Hyx = 0.d0; B_pec = 0.d0; ipiv = 0
 
             WRITE(*,'(/,T5,A,I5)') "Nx = ", Nx
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(A) = "    ,  shape(cn%A)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = "  ,  shape(Exx)
-            WRITE(*,'(/, T5, A, I15X)')    "shape(B) = "    ,  shape(cn%B)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(A_i) = "  ,  shape(Hxx)
+            WRITE(*,'(/, T5, A, I15X)')    "shape(rhs) = "    ,  shape(cn%rhs)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(B_pec) = ",  shape(B_pec)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ex) = "   ,  shape(cn%Ex)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ey) = "   ,  shape(cn%Ey)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hz) = "   ,  shape(cn%Hz)
-            WRITE(*,'(/, T5, A, I5X, I5)') "shape(J) = "    ,  shape(cn%J)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hx) = "   ,  shape(cn%Hx)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Hy) = "   ,  shape(cn%Hy)
+            WRITE(*,'(/, T5, A, I5X, I5)') "shape(Ez) = "   ,  shape(cn%Ez)
             WRITE(*,'(/, T5, A, I5X, I5)') "shape(ipiv) = " ,  shape(ipiv)
 
             
@@ -136,28 +127,28 @@ MODULE fdtd
             !-------------------------------------------------------------!
 
                         ! -------- ! -------- !
-                        !   Exx    !   Exy    !
+                        !   Hxx    !   Hxy    !
             ! A =       !----------!----------!
-                        !   Eyx    !   Eyy    !
+                        !   Hyx    !   Hyy    !
                         ! -------- ! -------- !
 
             !----------------------------------------------------!
-            !------------------ Sous matrice Exx -----------------!
+            !------------------ Sous matrice Hxx -----------------!
             !----------------------------------------------------!
-                  Exx(0,0) = 1.0d0 + 2.d0 * cn%bx**2
-                  Exx(0,1) = - cn%bx**2 
+                  Hxx(0,0) = 1.0d0 + 2.d0 * cn%bx**2
+                  Hxx(0,1) = - cn%bx**2 
 
                   DO j = 1, Nx
-                        Exx(j,j-1) = - cn%bx**2
-                        Exx(j,j) = 1.0d0 + 2.d0 * cn%bx**2
-                        Exx(j,j+1) = - cn%bx**2
+                        Hxx(j,j-1) = - cn%bx**2
+                        Hxx(j,j) = 1.0d0 + 2.d0 * cn%bx**2
+                        Hxx(j,j+1) = - cn%bx**2
                   END DO
 
 
 
-            ! ! Affichage de la matrice Exx
+            ! ! Affichage de la matrice Hxx
             IF (display_it) THEN
-                  CALL display_matrix(Exx, "Exx")
+                  CALL display_matrix(Hxx, "Hxx")
             END IF
 
             
@@ -165,57 +156,57 @@ MODULE fdtd
 
 
             !----------------------------------------------------!
-            !------------------ Sous matrice Eyy -----------------!
+            !------------------ Sous matrice Hyy -----------------!
             !----------------------------------------------------!     
-            Eyy = Exx
+            Hyy = Hxx
 
-            ! ! Affichage de la matrice Eyy
+            ! ! Affichage de la matrice Hyy
             IF (display_it) THEN
-                  CALL display_matrix(Eyy, "Eyy")
+                  CALL display_matrix(Hyy, "Hyy")
             END IF
 
 
 
 
             !----------------------------------------------------!
-            !------------------ Sous matrice Exy -----------------!
+            !------------------ Sous matrice Hxy -----------------!
             !----------------------------------------------------!
 
                   DO i = 0, Nx-2
                         j = i
-                        Exy(i , j)     =  -1.d0
-                        Exy(i , j + 1) =   2.d0
-                        Exy(i , j + 2) =  -1.d0
+                        Hxy(i , j)     =  -1.d0
+                        Hxy(i , j + 1) =   2.d0
+                        Hxy(i , j + 2) =  -1.d0
                   END DO 
 
-                  Exy(Nx-1,Nx-1)    = - 1.d0
-                  Exy(Nx-1, Nx)     =   2.d0
-                  Exy(Nx, Nx)       = - 1.d0
+                  Hxy(Nx-1,Nx-1)    = - 1.d0
+                  Hxy(Nx-1, Nx)     =   2.d0
+                  Hxy(Nx, Nx)       = - 1.d0
 
-                  Exy = cn%bx * cn%by * Exy
+                  Hxy = cn%bx * cn%by * Hxy
                   
 
 
 
-            ! ! Affichage de la matrice Exy
+            ! ! Affichage de la matrice Hxy
             IF (display_it) THEN
-                  CALL display_matrix(Exy, "Exy")
+                  CALL display_matrix(Hxy, "Hxy")
             END IF
 
             !----------------------------------------------------!
-            !------------------ Sous matrice Eyx -----------------!
+            !------------------ Sous matrice Hyx -----------------!
             !----------------------------------------------------!
 
-                  Eyx = transpose(Exy)
+                  Hyx = transpose(Hxy)
 
 
 
 
 
 
-            ! Affichage de la matrice Eyx
+            ! Affichage de la matrice Hyx
             IF (display_it) THEN
-                  CALL display_matrix(Eyx, "Eyx")
+                  CALL display_matrix(Hyx, "Hyx")
             END IF
             
 
@@ -227,9 +218,9 @@ MODULE fdtd
             !---------------------------------------------------------------!
 
                         ! -------- ! -------- !
-                        !   Exx    !   Exy    !
+                        !   Hxx    !   Hxy    !
             ! A =       !----------!----------!
-                        !   Eyx    !   Eyy    !
+                        !   Hyx    !   Hyy    !
                         ! -------- ! -------- !
 
 
@@ -242,11 +233,11 @@ MODULE fdtd
             WRITE(*, '(/, T5, A, I5, I5)') "i1, j1 = ", i1, j1
 
             ! Collage des blocs diagonaux
-            cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = Exx
-            cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = Eyy
+            cn%A(i0  :i0 + Nx, j0  :j0 + Ny)   = Hxx
+            cn%A(i1  :i1 + Nx, j1  :j1 + Ny)   = Hyy
             ! Collage des matrices de couplage
-            cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = Exy
-            cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = Eyx
+            cn%A(i0 : i0 + Nx, j1 : j1 + Ny) = Hxy
+            cn%A(i1 : i1 + Nx, j0 : j0 + Ny) = Hyx
 
 
 
@@ -261,17 +252,17 @@ MODULE fdtd
             ! ! !---------------------------------------------------!
 
             ! Libération de mémoire 
-            IF (ALLOCATED(Exx)) THEN
-                  DEALLOCATE(Exx)
+            IF (ALLOCATED(Hxx)) THEN
+                  DEALLOCATE(Hxx)
             END IF
-            IF (ALLOCATED(Eyy)) THEN
-                  DEALLOCATE(Eyy)
+            IF (ALLOCATED(Hyy)) THEN
+                  DEALLOCATE(Hyy)
             END IF
-            IF (ALLOCATED(Exy)) THEN
-                  DEALLOCATE(Exy)
+            IF (ALLOCATED(Hxy)) THEN
+                  DEALLOCATE(Hxy)
             END IF
-            IF (ALLOCATED(Eyx)) THEN
-                  DEALLOCATE(Eyx)
+            IF (ALLOCATED(Hyx)) THEN
+                  DEALLOCATE(Hyx)
             END IF
             ! ! !---------------------------------------------------!
 
@@ -297,8 +288,8 @@ MODULE fdtd
 
 
             ! Ouverture du fichier de sortie
-            OPEN(idfile , file = "data/Ex.txt", status = "replace", action = "write", form = "formatted")
-            OPEN(idfile + 1 , file = "data/Hz.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(idfile , file = "data/Hx.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(idfile + 1 , file = "data/Ez.txt", status = "replace", action = "write", form = "formatted")
             
             !-------------------------------------------------------------!
             !------------------- Boucle temporelle -----------------------!
@@ -319,112 +310,79 @@ MODULE fdtd
                   END IF
 
                   !--------------------------------------------------------------!
-                  !------------------- Ecriture du vecteur B --------------------!
+                  !------------------- Ecriture du vecteur rhs --------------------!
                   !--------------------------------------------------------------!
                  
 
-                   ! Mise à jour explicite de Hz
-                  !Injection de source
-                  cn%Hz(i_src,j_src) = Esrc(n)
-
-                                    ! CDT DE BORD / PEC
-                  cn%Hz(: ,0)  = cn%Hz(:, 1)            ! Bord inférieur
-                  cn%Hz(: ,Ny) = cn%Hz(:,Ny-1)          ! Bord supérieur
-                  cn%Hz(0 ,:)  = cn%Hz(1,:)             ! Bord gauche
-                  cn%Hz(Nx,:)  = cn%Hz(Nx-1,:)          ! Bord droit
-
-                  DO i = 0, Nx-1
-                        DO j = 0, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j) )                   &
-                                                      - cn%a2 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
+                   ! Mise à jour explicite de Ez
+                  DO i = 1, Nx-1
+                        DO j = 1, Ny-1
+                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
+                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
                         END DO
                   END DO
 
+                                                      ! CDT DE BORD / PMC
+                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
+                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
+                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
+                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
 
+                                    !Injection de source
+                  cn%Ez(i_src,j_src) = Esrc(n)
 
 
                    ! On enregistre les résultats du temps précédent
-                  cn%Ex = B_pec(0 : Nx, 0 : Ny)
-                  cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
-                  !print * , "pass 1"
+                  cn%Hx = B_pec(0 : Nx, 0 : Ny)
+                  cn%Hy = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
 
                  
                   
 
-                  ! On parcourt l'entierté des champs Ex et Ey
-                  ! Second membre Ex
+                  ! On parcourt l'entierté des champs Hx et Hy
+                  ! Second membre Hx
                   DO i = 1,  Nx-1
                         !print *, "i = ", i
                         DO j = 1, Ny-1
                               ! Détermine le bonne indice
-                              idx_Ex = i * (Nx + 1) + j
-                              ! print *, "idx_Ex = ", idx_Ex, "i,j =", i , j
-                              cn%B(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         & 
-                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                    &
-                                          - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )                &
-                                          + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )            &
-                                          + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
+                              idx_Hx = i * (Nx + 1) + j
+                               print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
+                              cn%rhs(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                       & 
+                                          + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )                    &
+                                          - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )                &
+                                          + cn%bx*cn%by * ( cn%Hy(i + 1 , j - 1) - cn%Hy(i, j - 1) )            &
+                                          - 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i, j-1))
                         END DO
                   END DO
 
 
 
-                  !print *, "pass 2"
 
-
-
-
-                  ! Second membre Ey
+                  ! Second membre Hy
                   DO i = 1 , Nx-1
                         !print *, "i = ", i
                         DO j = 1,  Ny - 1
                               ! Détermine le bonne indice
-                              idx_Ey = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
-                              ! print *, "idx_Ey = ", idx_Ey, 'i,j =', i , j
-                              ! Calcul du second membre Ey
-                              cn%B(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
-                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                          - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
-                                          + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
-                                          - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
+                              idx_Hy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
+                               print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
+                              ! Calcul du second membre Hy
+                              cn%rhs(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                              & 
+                                          + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
+                                          - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
+                                          + cn%bx*cn%by * ( cn%Hx(i-1, j + 1) - cn%Hx(i-1, j) )                    &
+                                          + 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i-1, j))
                         END DO
                   END DO
-                  !print *, "pass 3"
 
-                  
-                  
 
                   ! Résolution du système linéaire
-                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%B, SIZE(cn%rhs), info)
+                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%rhs, SIZE(cn%rhs), info)
                   !print *, "pass 4"
 
-                  ! reshape du vecteur B / order = [2,1] fait varier j avant i
-                  B_pec = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
-
-                  ! CONDITION DE BORD / PEC
-                  B_pec(:,0)         = 0.d0
-                  B_pec(:,Ny)        = 0.d0
-                  B_pec(Nx + 1, :)   = 0.d0
-                  B_pec(2* (Nx + 1), :) = 0.d0
-
-                  
-                  !print *, "pass 5"
-
-                  !print *, "pass 6"
-
-
-
-                 
-
-
-
-                  !print *, "pass 7"
-
-                  
-
-
+                  ! reshape du vecteur rhs / order = [2,1] fait varier j avant i
+                  B_pec = reshape(cn%rhs, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
                   
 
                   ! Ecriture dans le fichier 
@@ -432,8 +390,8 @@ MODULE fdtd
                         m = m + 1
                         DO i = 0, Nx, 2
                               DO j = 0, Ny, 2
-                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
-                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Ex(i,j)
+                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Ez(i,j)
+                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Hx(i,j)
                               END DO
                               WRITE(idfile + 1, *)
                               write(idfile    , *)
@@ -449,13 +407,13 @@ MODULE fdtd
                   
             END DO
 
-            ! WRITE(*, '(/, T5, A, /)') "Test reshape du vecteur B :"
+            ! WRITE(*, '(/, T5, A, /)') "Test reshape du vecteur rhs :"
             ! print *, "shape(B_pec) = ", shape(B_pec)
 
-            ! WRITE(*,'(2(AX,F16.10))') 'B(0)=',cn%B(0),' B_pec(0,0)=',B_pec(0,0)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(1)=',cn%B(1),' B_pec(0,1)=',B_pec(0,1)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(19)=',cn%B(19),' B_pec(3,3)=',B_pec(3,3)
-            ! WRITE(*,'(2(AX,F16.10))') 'B(Ny+1)=',cn%B(Ny+1),' B_pec(1,0)=',B_pec(1,0)
+            ! WRITE(*,'(2(AX,F16.10))') 'rhs(0)=',cn%rhs(0),' B_pec(0,0)=',B_pec(0,0)
+            ! WRITE(*,'(2(AX,F16.10))') 'rhs(1)=',cn%rhs(1),' B_pec(0,1)=',B_pec(0,1)
+            ! WRITE(*,'(2(AX,F16.10))') 'rhs(19)=',cn%rhs(19),' B_pec(3,3)=',B_pec(3,3)
+            ! WRITE(*,'(2(AX,F16.10))') 'rhs(Ny+1)=',cn%rhs(Ny+1),' B_pec(1,0)=',B_pec(1,0)
 
             WRITE(*, '(/, t5, A, I5)') "Nombre de blocs : ", m
             
@@ -481,26 +439,17 @@ MODULE fdtd
             IF (ALLOCATED(cn%S)) THEN
             DEALLOCATE(cn%S)
             END IF
-            IF (ALLOCATED(cn%Ex)) THEN
-            DEALLOCATE(cn%Ex)
+            IF (ALLOCATED(cn%Hx)) THEN
+            DEALLOCATE(cn%Hx)
             END IF
-            IF (ALLOCATED(cn%Hz)) THEN
-            DEALLOCATE(cn%Hz)
-            END IF
-            IF (ALLOCATED(cn%c_E)) THEN
-            DEALLOCATE(cn%c_E)
-            END IF
-            IF (ALLOCATED(cn%c_H)) THEN
-            DEALLOCATE(cn%c_H)
+            IF (ALLOCATED(cn%Ez)) THEN
+            DEALLOCATE(cn%Ez)
             END IF
             IF (ALLOCATED(cn%A)) THEN
             DEALLOCATE(cn%A)
             END IF
-            IF (ALLOCATED(cn%B)) THEN
-            DEALLOCATE(cn%B)
-            END IF
-            IF (ALLOCATED(cn%B)) THEN
-            DEALLOCATE(cn%B)
+            IF (ALLOCATED(cn%rhs)) THEN
+            DEALLOCATE(cn%rhs)
             END IF
 
       END SUBROUTINE freememory

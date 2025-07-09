@@ -17,12 +17,12 @@ set title "Animation Hz"
 
 block1 = 50
 block2= 150
-block3 = 220
+block3 = 230
 
-splot 'data/Hz.txt' index block1 matrix with image
-splot 'data/Hz.txt' index block2 matrix with image 
-splot 'data/Hz.txt' index block3 matrix with image
-splot 'data/Ex.txt' index block1 matrix with image
-splot 'data/Ex.txt' index block2 matrix with image
-splot 'data/Ex.txt' index block3 matrix with image
+splot 'data/Ez.txt' index block1 matrix with image
+splot 'data/Ez.txt' index block2 matrix with image 
+splot 'data/Ez.txt' index block3 matrix with image
+#splot 'data/Hx.txt' index block1 matrix with image
+#splot 'data/Hx.txt' index block2 matrix with image
+#splot 'data/Hx.txt' index block3 matrix with image
 
