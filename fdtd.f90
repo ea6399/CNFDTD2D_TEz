@@ -282,6 +282,16 @@ MODULE fdtd
 
             WRITE(*, (/,/))
 
+            ! Analyse MUMPS
+            mumps%JOB = 1
+            CALL DMUMPS(mumps)
+
+            ! Factorisation MUMPS
+            mumps%JOB = 2
+            CALL DMUMPS(mumps)
+
+
+
             ! Ouverture du fichier de sortie
             OPEN(idfile , file = "data/Ex.txt", status = "replace", action = "write", form = "formatted")
             OPEN(idfile + 1 , file = "data/Hz.txt", status = "replace", action = "write", form = "formatted")
@@ -310,7 +320,7 @@ MODULE fdtd
                   cn%Ey = B_mat(i1 : i1 + Nx, 0 : Ny)
                   !print * , "pass 1"
 
-                 
+                  
                   
 
                   ! Second membre Ex
