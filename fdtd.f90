@@ -197,7 +197,8 @@ MODULE fdtd
             ! Parametrage de la matrice A
             nrow = 2 * (Nx + 1)
             ncol = 2 * (Ny + 1)
-            mumps%N = 2 * nrow * ncol ! Nombre de lignes x Nombres de colonnes
+            mumps%N = nrow  ! Nombre de lignes 
+
                           ! Element diagonaux Exx et Eyy     +     ! Element matrice de couplage Eyx
             mumps%NNZ = 2 * (Nx + 1 + Nx)  +  (Nx + 1 + Nx + Nx - 1)  ! On ne stocke que les coefficients de la partie inférieure de la matrice
             nnz = mumps%NNZ
@@ -280,10 +281,11 @@ MODULE fdtd
                   WRITE(500, *) mumps%A
             CLOSE(500)
 
-            WRITE(*, (/,/))
+            WRITE(*, '(/,/)')
 
             ! Analyse MUMPS
             mumps%JOB = 1
+            mumps%ICNTL(1:3) = 0
             CALL DMUMPS(mumps)
 
             ! Factorisation MUMPS
@@ -305,111 +307,119 @@ MODULE fdtd
 
             m = 0
 
-            DO n = 0, Nt - 1
+            ! Initialisation du RHS pour MUMPS
+            ALLOCATE(mumps%RHS(0 : nnz - 1))
+            mumps%RHS = 0.d0
 
-                  IF (MOD(n,5*snapshot) == 0) THEN
-                        WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
-                  END IF
+            ! Paramétrage RHS MUMPS
+            mumps%NRHS   = 2 * (Ny + 1) ! Nombre de lignes x Nombres de colonnes
+            mumps%NZ_RHS = nnz
+
+            ! DO n = 0, Nt - 1
+
+            !       IF (MOD(n,5*snapshot) == 0) THEN
+            !             WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
+            !       END IF
 
 
-                  !--------------------------------------------------------------!
-                  !------------------- Ecriture du vecteur B --------------------!
-                  !--------------------------------------------------------------!
-                  ! On enregistre les résultats du temps précédent
-                  cn%Ex = B_mat(0 : Nx, 0 : Ny)
-                  cn%Ey = B_mat(i1 : i1 + Nx, 0 : Ny)
-                  !print * , "pass 1"
+            !       !--------------------------------------------------------------!
+            !       !------------------- Ecriture du vecteur B --------------------!
+            !       !--------------------------------------------------------------!
+            !       ! On enregistre les résultats du temps précédent
+                  
+
+            !       ! Second membre Ex
 
                   
                   
 
-                  ! Second membre Ex
-                  DO i = 0,  Nx
-                        !print *, "i = ", i
-                        DO j = 0, Ny
-                              ! Détermine le bonne indice
-                              idx = i * (Nx + 1) + j
-                              ! print *, "idx = ", idx, "i,j =", i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
-                                    cn%B(idx) = 0.d0
-                              else
-                                    cn%B(idx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                        & 
-                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
-                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
-                                                + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
-                              endif
-                        END DO
-                  END DO
+            !       ! Second membre Ex
+            !       DO i = 0,  Nx
+            !             !print *, "i = ", i
+            !             DO j = 0, Ny
+            !                   ! Détermine le bonne indice
+            !                   idx = i * (Nx + 1) + j
+            !                   ! print *, "idx = ", idx, "i,j =", i , j
+            !                   if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then
+            !                         cn%B(idx) = 0.d0
+            !                   else
+            !                         cn%B(idx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                        & 
+            !                                     + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )                &
+            !                                     - cn%bx*cn%by * ( cn%Ey(i + 1, j) - cn%Ey(i, j) )                 &
+            !                                     + cn%bx*cn%by * ( cn%Ey(i + 1 , j -1) - cn%Ey(i, j - 1) )         &
+            !                                     + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
+            !                   endif
+            !             END DO
+            !       END DO
 
-                  !print *, "pass 2"
-
-
-
-
-                  ! Second membre Ey
-                  DO i = 0 , Nx
-                        !print *, "i = ", i
-                        DO j = 0,  Ny
-                              ! Détermine le bonne indice
-                              idy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
-                              ! print *, "idy = ", idy, 'i,j =', i , j
-                              if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
-                                    cn%B(idy) = 0.d0
-                              else
-                              ! Calcul du second membre Ey
-                                    cn%B(idy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
-                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
-                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )                 &
-                                                - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
-                               END IF
-                        END DO
-                  END DO
-                  !print *, "pass 3"
-
-                  
-
-                  ! reshape du vecteur B / order = [2,1] fait varier j avant i
-                  B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
-
-
-                  !print *, "pass 5"
+            !       !print *, "pass 2"
 
 
 
-                  ! Mise à jour explicite de Hz
 
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
-                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
-                                                      - cn%a2 / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
-                                                                        + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
-                        END DO
-                  END DO
-
-                  cn%Hz(i_src,j_src) = cn%Hz(i_src,j_src) + Esrc(n)
-
-                  !print *, "pass 7"
+            !       ! Second membre Ey
+            !       DO i = 0 , Nx
+            !             !print *, "i = ", i
+            !             DO j = 0,  Ny
+            !                   ! Détermine le bonne indice
+            !                   idy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
+            !                   ! print *, "idy = ", idy, 'i,j =', i , j
+            !                   if (i == 0 .OR. i == Nx .OR. j == 0 .OR. j == Ny) then 
+            !                         cn%B(idy) = 0.d0
+            !                   else
+            !                   ! Calcul du second membre Ey
+            !                         cn%B(idy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              & 
+            !                                     + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
+            !                                     - cn%bx*cn%by * ( cn%Ex(i , j + 1) - cn%Ex(i , j)  )         &
+            !                                     + cn%bx*cn%by * ( cn%Ex(i-1, j + 1)- cn%Ex(i-1, j) )                 &
+            !                                     - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
+            !                    END IF
+            !             END DO
+            !       END DO
+            !       !print *, "pass 3"
 
                   
 
+            !       ! reshape du vecteur B / order = [2,1] fait varier j avant i
+            !       B_mat = reshape(cn%B, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+
+
+            !       !print *, "pass 5"
+
+
+
+            !       ! Mise à jour explicite de Hz
+
+            !       DO i = 1, Nx-1
+            !             DO j = 1, Ny-1
+            !                   cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_mat(i,j + 1) - B_mat(i,j - 1)                      &
+            !                                                             + cn%Ex(i, j + 1) - cn%Ex(i,j-1) )               &
+            !                                           - cn%a2 / cn%dx * ( B_mat(i1 + (i + 1),j) - B_mat(i1 + (i-1),j)          &          ! i1 = Nx + 1
+            !                                                             + cn%Ey(i + 1, j) - cn%Ey(i - 1,j) )
+            !             END DO
+            !       END DO
+
+            !       cn%Hz(i_src,j_src) = cn%Hz(i_src,j_src) + Esrc(n)
+
+            !       !print *, "pass 7"
 
                   
 
-                  ! Ecriture dans le fichier 
-                  IF (MOD(n,snapshot) == 0) THEN
-                        m = m + 1
-                        DO i = 0, Nx, 2
-                              DO j = 0, Ny, 2
-                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
-                              END DO
-                              WRITE(idfile + 1, *)
-                        END DO 
-                        WRITE(idfile + 1, *)    
-                  END IF
-                  ! ! !---------------------------------------------------!
+
+                  
+
+            !       ! Ecriture dans le fichier 
+            !       IF (MOD(n,snapshot) == 0) THEN
+            !             m = m + 1
+            !             DO i = 0, Nx, 2
+            !                   DO j = 0, Ny, 2
+            !                         WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
+            !                   END DO
+            !                   WRITE(idfile + 1, *)
+            !             END DO 
+            !             WRITE(idfile + 1, *)    
+            !       END IF
+            !       ! ! !---------------------------------------------------!
 
 
 
