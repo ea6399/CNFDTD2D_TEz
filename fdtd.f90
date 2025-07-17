@@ -312,43 +312,20 @@ MODULE fdtd
                   !--------------------------------------------------------------!
                   !------------------- Ecriture du vecteur rhs --------------------!
                   !--------------------------------------------------------------!
-                 
-
-                   ! Mise à jour explicite de Ez
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
-                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
-                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
-                        END DO
-                  END DO
-
-                                                      ! CDT DE BORD / PMC
-                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
-                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
-                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
-                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
-
-                                    !Injection de source
-                  cn%Ez(i_src,j_src) = Esrc(n)
-
 
                    ! On enregistre les résultats du temps précédent
                   cn%Hx = B_pec(0 : Nx, 0 : Ny)
                   cn%Hy = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
-
-                 
                   
 
                   ! On parcourt l'entierté des champs Hx et Hy
                   ! Second membre Hx
-                  DO i = 1,  Nx-1
+                  DO i = 0,  Nx-1
                         !print *, "i = ", i
                         DO j = 1, Ny-1
                               ! Détermine le bonne indice
                               idx_Hx = i * (Nx + 1) + j
-                               print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
+                              ! print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
                               cn%rhs(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                       & 
                                           + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )                    &
                                           - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )                &
@@ -357,16 +334,24 @@ MODULE fdtd
                         END DO
                   END DO
 
+                  ! Conditoon aux bords du champ magnétique
+                  DO i = 0, Nx
+                        idx_Hx         = i * (Nx + 1)
+                        j = 0
+                        !print *, "idx_Hx = ", idx_Hx, "i, j = ", i, j
+                        cn%rhs(idx_Hx) = cn%rhs(idx_Hx + 1) 
+                  END DO
+
 
 
 
                   ! Second membre Hy
                   DO i = 1 , Nx-1
                         !print *, "i = ", i
-                        DO j = 1,  Ny - 1
+                        DO j = 0,  Ny - 1
                               ! Détermine le bonne indice
                               idx_Hy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
-                               print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
+                              ! print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
                               ! Calcul du second membre Hy
                               cn%rhs(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                              & 
                                           + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
@@ -376,6 +361,37 @@ MODULE fdtd
                         END DO
                   END DO
 
+                  ! Condition aux bords du champ magnétique
+                  DO j = 0, Ny
+                        idx_Hy = (Nx + 1) * (Ny + 1) + j
+                        i = 0
+                        !print *, ""
+                        !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
+                        cn%rhs(idx_Hy) = cn%rhs(idx_Hy + 1) 
+                  END DO
+
+
+                  
+
+                                       ! Mise à jour explicite de Ez
+                  DO i = 1, Nx-1
+                        DO j = 1, Ny-1
+                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
+                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
+                        END DO
+                  END DO
+
+                                                      !Injection de source
+                  cn%Ez(i_src,j_src) = Esrc(n)
+
+                                                      ! CDT DE BORD / PMC
+                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
+                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
+                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
+                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
+
 
                   ! Résolution du système linéaire
                   CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%rhs, SIZE(cn%rhs), info)
@@ -384,7 +400,6 @@ MODULE fdtd
                   ! reshape du vecteur rhs / order = [2,1] fait varier j avant i
                   B_pec = reshape(cn%rhs, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
                   
-
                   ! Ecriture dans le fichier 
                   IF (MOD(n,snapshot) == 0) THEN
                         m = m + 1
