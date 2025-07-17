@@ -181,6 +181,14 @@ MODULE fdtd
             ! On résout AX = B, B ayant Ny + 1 colonnes, et 2 * (Nx + 1 ) lignes
             ! | Ex |
             ! | Ey |
+            !        ______ _________
+            !       |       |        |
+            !       |  Exx  |  Exy   |
+            !       |       |        |
+            !   A = |----------------|
+            !       |       |        |    
+            !       |  Eyx  |  Eyy   |
+            !       |_______|_______ |
 
             mumps%JOB = -1               ! Initialisation de MUMPS
             CALL DMUMPS(mumps)
@@ -189,7 +197,8 @@ MODULE fdtd
             nrow = 2 * (Nx + 1)
             ncol = 2 * (Ny + 1)
             mumps%N = 2 * nrow * ncol ! Nombre de lignes x Nombres de colonnes
-            mumps%NNZ = 2 * (Nx + 1 + Nx + Nx) + 2 * (Nx + 1 + Nx + Nx - 1)
+                          ! Element diagonaux Exx et Eyy    ! Element matrice de couplage Exy
+            mumps%NNZ = 2 * (Nx + 1 + Nx)                +  (Nx + 1 + Nx + Nx - 1)              ! On ne stocke que les coefficients de la partie inférieure de la matrice
             nnz = mumps%NNZ
 
             ! Allocation des tableaux
