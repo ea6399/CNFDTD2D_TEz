@@ -383,8 +383,8 @@ MODULE fdtd
                         END DO
                   END DO
 
-                                                      !Injection de source
-                  cn%Ez(i_src,j_src) = Esrc(n)
+                  !Injection de source
+                  cn%Ez(i_src,j_src) = Esrc(n)        
 
                                                       ! CDT DE BORD / PMC
                   cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
