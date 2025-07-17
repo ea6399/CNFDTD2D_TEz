@@ -7,7 +7,6 @@ MODULE fdtd
       INCLUDE 'mpif.h'
       INCLUDE 'dmumps_struc.h'
 
-      IMPLICIT NONE
       ! Déclaration de variables
       ! Class fdtd
       TYPE :: cnfdtd
@@ -141,10 +140,12 @@ MODULE fdtd
             ! Allocation et initialisation des diagonales
             ALLOCATE(diag_x(0: Nx))
             ALLOCATE(diag_y(0: Nx))
-            ALLOCATE(subdiag_x(0:, subdiag_y(:) Nx - 1))
+            ALLOCATE(subdiag_x(0 : Nx - 1))
+            ALLOCATE(subdiag_y(0 : Nx - 1))
             diag_x = 0.d0
             diag_y = 0.d0
             subdiag_x = 0.d0
+            subdiag_y = 0.d0
 
             ALLOCATE(diag_xy(0:Nx))
             ALLOCATE(updiag_xy(0:Nx - 1))

@@ -1,29 +1,44 @@
-FC      = gfortran
-FFLAGS  = -ffree-line-length-none -fbacktrace -Wall -Wextra -O2
-LDLIBS  = -llapack -lblas
+# Configuration MUMPS
+topdir = /home/emin/Documents/MUMPS_5.8.0
+libdir = $(topdir)/lib
+includedir = $(topdir)/include
 
-SRC     = numerics.f90 source.f90 fdtd.f90 test.f90 main.f90
+# Inclusion du makefile MUMPS qui définit les variables essentielles
+include $(topdir)/Makefile.inc
+
+# Structure des répertoires
+SRC     = numerics.f90 source.f90 fdtd.f90 main.f90
 OBJDIR  = obj
 MODDIR  = mod
 BINDIR  = bin
 DATADIR = data
 OBJ     = $(patsubst %.f90,$(OBJDIR)/%.o,$(SRC))
 
+# Options de compilation supplémentaires
+FFLAGS  += -ffree-line-length-none -fbacktrace -Wall -Wextra -O2 -I$(includedir) -fcheck=all
 
+# Définition des bibliothèques MUMPS 
+LIBSDMUMPS = -L$(libdir) -lsmumps$(PLAT) -ldmumps$(PLAT) -lmumps_common$(PLAT)
+
+# Règles de compilation
 $(OBJDIR)/%.o: %.f90 | $(OBJDIR) $(MODDIR)
-	$(FC) $(FFLAGS) -J$(MODDIR) -c $< -o $@
-
+	$(FC) $(OPTF) $(FFLAGS) -I. -I$(includedir) -I$(topdir)/src $(INCS) -J$(MODDIR) -c $< -o $@
 
 exec: $(OBJ) | $(BINDIR)
-	$(FC) $(FFLAGS) -o $(BINDIR)/$@ $^ $(LDLIBS)
+	$(FL) -o $(BINDIR)/$@ $(OPTL) $^ $(LIBSDMUMPS) $(LORDERINGS) $(LIBS) $(RPATH_OPT) $(LIBBLAS) $(LIBOTHERS)
 
-all : $(DATADIR) exec
+all: directories exec
 
-all: $(BINDIR) exec
+directories: $(BINDIR) $(OBJDIR) $(MODDIR) $(DATADIR)
 
+$(BINDIR) $(OBJDIR) $(MODDIR) $(DATADIR):
+	mkdir -p $@
 
 clean:
-	rm -f $(OBJDIR)/*.o $(MODDIR)/*.mod $(BINDIR)/exec $(DATADIR)/* .txt
+	rm -f $(OBJDIR)/*.o $(MODDIR)/*.mod $(BINDIR)/exec $(DATADIR)/*.txt
 	rm -f frames/*
 
-.PHONY: all clean
+.PHONY: all clean directories
+
+
+
