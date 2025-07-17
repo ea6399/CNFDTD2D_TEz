@@ -113,58 +113,22 @@ MODULE fdtd
             LOGICAL :: display_it
             INTEGER :: info
             INTEGER :: n, m, nvec, nrow, ncol
-            INTEGER :: i,j, idx, idy, k, id_nz
+            INTEGER :: i,j, idx_Ex, idx_Ey
             INTEGER :: i1
             INTEGER :: snapshot
-            REAL(8), ALLOCATABLE :: X(:,:)
+            REAL(8), ALLOCATABLE :: B_pec(:,:)
+            REAL(8) :: rhs_old
             ! Mumps variables
-            INTEGER(8) :: nmps, nnz, irn, jcn 
-            REAL(8), ALLOCATABLE :: diag_x(:), diag_y(:), subdiag_x(:), subdiag_y(:)
-            REAL(8), ALLOCATABLE :: diag_xy(:), updiag_xy(:), uupdiag_xy(:) 
+            INTEGER(8) :: nmps, nnz, irn, jcn, irhs
             INTEGER :: counter_nnz
+
+            ALLOCATE(B_pec( 0 : 2 * (Nx + 1) - 1 , 0 : (Ny + 1 ) - 1 ))
+            B_pec = 0.d0
 
 
             m = 0
             display_it = .FALSE.  
             charac = "" 
-
-            !-------------------------------------------------------------!
-            !------------------ Ecriture de la matrice A -----------------!
-            !-------------------------------------------------------------!
-
-                        ! -------- ! -------- !
-                        !   Exx    !   Exy    !
-            !  A =      !----------!----------!
-                        !   Eyx    !   Eyy    !
-                        ! -------- ! -------- !
-
-            ! Allocation et initialisation des diagonales
-            ALLOCATE(diag_x(0: Nx))
-            ALLOCATE(diag_y(0: Nx))
-            ALLOCATE(subdiag_x(0 : Nx - 1))
-            ALLOCATE(subdiag_y(0 : Nx - 1))
-            diag_x = 0.d0
-            diag_y = 0.d0
-            subdiag_x = 0.d0
-            subdiag_y = 0.d0
-
-            ALLOCATE(diag_xy(0:Nx))
-            ALLOCATE(updiag_xy(0:Nx - 1))
-            ALLOCATE(uupdiag_xy(0:Nx - 2))
-            diag_xy = 0.d0
-            updiag_xy = 0.d0
-            uupdiag_xy = 0.d0
-
-            ! Computation des coefficients de la matrice A
-            diag_x = 1.d0 + 2.d0 * cn%bx**2
-            diag_y = 1.d0 + 2.d0 * cn%by**2
-            subdiag_x = - cn%bx**2
-            subdiag_y = - cn%by**2
-
-            diag_xy = - cn%bx * cn%by
-            updiag_xy = 2.d0 *  cn%bx * cn%by
-            uupdiag_xy = - cn%bx * cn%by
-
 
             !------------------------------------------------------------------!
             !------------------------ Entering MUMPS --------------------------!
@@ -318,103 +282,92 @@ MODULE fdtd
                   END IF
 
                   !--------------------------------------------------------------!
-                  !------------------- Ecriture du vecteur rhs --------------------!
+                  !------------------- Ecriture du vecteur B --------------------!
                   !--------------------------------------------------------------!
+
+
+                   ! Mise à jour explicite de Hz
+                  !Injection de source
+                  cn%Hz(i_src,j_src) = Esrc(n)
+
+                  DO i = 1, Nx-1
+                        DO j = 1, Ny-1
+                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j) )                   &
+                                                      - cn%a2 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
+                        END DO
+                  END DO
+
+                                    ! CDT DE BORD / PMC
+                  cn%Hz(: ,0)  = cn%Hz(:, 1)            ! Bord inférieur
+                  cn%Hz(: ,Ny) = cn%Hz(:,Ny-1)          ! Bord supérieur
+                  cn%Hz(0 ,:)  = cn%Hz(1,:)             ! Bord gauche
+                  cn%Hz(Nx,:)  = cn%Hz(Nx-1,:)          ! Bord droit
+
 
                    ! On enregistre les résultats du temps précédent
                   cn%Ex = B_pec(0 : Nx, 0 : Ny)
                   cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
 
+                  irhs = 0
+                  rhs_old = 0.d0
 
-                  ! On parcourt l'entierté des champs Hx et Hy
-                  ! Second membre Hx
-                  DO i = 0,  Nx-1
-                        !print *, "i = ", i
-                        DO j = 1, Ny-1
-                              ! Détermine le bonne indice
-                              idx_Hx = i * (Nx + 1) + j
-                              ! print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
-                              mumps%RHS(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                       &
-                                          + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )                    &
-                                          - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )                &
-                                          + cn%bx*cn%by * ( cn%Hy(i + 1 , j - 1) - cn%Hy(i, j - 1) )            &
-                                          - 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i, j-1))
+                  ! Second membre Ex
+                  DO irhs = 0, Nx
+                        DO i = 0,  Nx - 1
+                              DO j = 1, Ny -1
+                                    rhs_old =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         &
+                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )               &
+                                                - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )           &
+                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )       &
+                                                + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
+                              END DO
                         END DO
-                  END DO
-
-                  ! Conditoon aux bords du champ magnétique
-                  DO i = 0, Nx
-                        idx_Hx         = i * (Nx + 1)
-                        j = 0
-                        !print *, "idx_Hx = ", idx_Hx, "i, j = ", i, j
-                        cn%rhs(idx_Hx) = cn%rhs(idx_Hx + 1)
+                        mumps%RHS(irhs) = rhs_old
                   END DO
 
 
 
-
-                  ! Second membre Hy
-                  DO i = 1 , Nx-1
-                        !print *, "i = ", i
-                        DO j = 0,  Ny - 1
-                              ! Détermine le bonne indice
-                              idx_Hy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
-                              ! print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
-                              ! Calcul du second membre Hy
-                              cn%rhs(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                              &
-                                          + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
-                                          - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
-                                          + cn%bx*cn%by * ( cn%Hx(i-1, j + 1) - cn%Hx(i-1, j) )                    &
-                                          + 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i-1, j))
+                  rhs_old = 0.d0
+                  ! Second membre Ey
+                  DO irhs = Nx + 1, 2 * Nx + 1
+                        DO i = 1 , Nx - 1
+                              DO j = 0,  Ny - 1
+                                    ! Calcul du second membre Ex
+                                    rhs_old =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
+                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
+                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
+                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
+                                                - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
+                              END DO
                         END DO
+                        mumps%RHS(irhs) = rhs_old
                   END DO
-
-                  ! Condition aux bords du champ magnétique
-                  DO j = 0, Ny
-                        idx_Hy = (Nx + 1) * (Ny + 1) + j
-                        i = 0
-                        !print *, ""
-                        !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
-                        cn%rhs(idx_Hy) = cn%rhs(idx_Hy + 1)
-                  END DO
-
-
-
-
-                                       ! Mise à jour explicite de Ez
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
-                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
-                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
-                        END DO
-                  END DO
-
-                  !Injection de source
-                  cn%Ez(i_src,j_src) = Esrc(n)
-
-                                                      ! CDT DE BORD / PMC
-                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
-                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
-                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
-                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
 
 
                   ! Résolution du système linéaire
-                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%rhs, SIZE(cn%rhs), info)
-                  !print *, "pass 4"
+                  mumps%JOB = 3
+                  CALL DMUMPS(mumps)
 
-                  ! reshape du vecteur rhs / order = [2,1] fait varier j avant i
-                  B_pec = reshape(cn%rhs, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  ! reshape du vecteur B / order = [2,1] fait varier j avant i
+                  !B_pec = reshape(mumps%RHS, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  B_pec = mumps%RHS
+
+                  ! CONDITION DE BORD / PEC
+                  B_pec(:,0)         = 0.d0
+                  B_pec(:,Ny)        = 0.d0
+                  B_pec(Nx + 1, :)   = 0.d0
+                  B_pec(2* (Nx + 1), :) = 0.d0
+
 
                   ! Ecriture dans le fichier
                   IF (MOD(n,snapshot) == 0) THEN
                         m = m + 1
                         DO i = 0, Nx, 2
                               DO j = 0, Ny, 2
-                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Ez(i,j)
-                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Hx(i,j)
+                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
+                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Ey(i,j)
                               END DO
                               WRITE(idfile + 1, *)
                               write(idfile    , *)
@@ -423,6 +376,9 @@ MODULE fdtd
                         WRITE(idfile    , *)
                   END IF
                   ! ! !---------------------------------------------------!
+
+
+
 
 
             END DO
