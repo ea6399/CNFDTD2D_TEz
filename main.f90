@@ -4,15 +4,11 @@ PROGRAM main
       USE numerics
       USE source
       USE fdtd
-      USE test
 
       ! Variables
       IMPLICIT NONE
             type(cnfdtd) :: cn
 
-
-      ! Module de test
-      ! CALL init_test()
 
       ! Début du programme
       CALL cn%init()
