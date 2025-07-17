@@ -229,12 +229,6 @@ MODULE fdtd
                         counter_nnz = counter_nnz + 1
                   end if
             END DO
-            ! VERIF
-            print *, mumps%IRN(0:6)
-            print *, mumps%JCN(0:6)
-            print *, mumps%A(0:6)
-
-            print *, "counter_nnz = ", counter_nnz
 
             ! Matrice Eyy
             DO i = 0, Nx
@@ -252,10 +246,7 @@ MODULE fdtd
                         counter_nnz = counter_nnz + 1
                   ENDIF 
             END DO
-            print*, "counter_nnz = ", counter_nnz
-            print *, mumps%IRN(7:13)
-            print *, mumps%JCN(7:13)
-            print *, mumps%A(7:13)
+
 
             ! Matrice Eyx
             DO i = 0 , Nx
@@ -281,10 +272,7 @@ MODULE fdtd
                   counter_nnz = counter_nnz + 1
                   END IF
             END DO
-            print *, "counter_nnz = ", counter_nnz
-            print *, mumps%IRN(14:22)
-            print *, mumps%JCN(14:22)
-            print *, mumps%A(14:22)
+
 
             OPEN(500, file = "data/mumps_elt.txt", status = "replace", action = "write", form = "formatted")
                   WRITE(500, *) mumps%IRN
