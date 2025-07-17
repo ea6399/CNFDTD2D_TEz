@@ -322,8 +322,8 @@ MODULE fdtd
                   !--------------------------------------------------------------!
 
                    ! On enregistre les résultats du temps précédent
-                  cn%Hx = B_pec(0 : Nx, 0 : Ny)
-                  cn%Hy = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
+                  cn%Ex = B_pec(0 : Nx, 0 : Ny)
+                  cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
 
 
                   ! On parcourt l'entierté des champs Hx et Hy
@@ -334,7 +334,7 @@ MODULE fdtd
                               ! Détermine le bonne indice
                               idx_Hx = i * (Nx + 1) + j
                               ! print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
-                              cn%rhs(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                       &
+                              mumps%RHS(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                       &
                                           + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )                    &
                                           - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )                &
                                           + cn%bx*cn%by * ( cn%Hy(i + 1 , j - 1) - cn%Hy(i, j - 1) )            &
@@ -423,9 +423,6 @@ MODULE fdtd
                         WRITE(idfile    , *)
                   END IF
                   ! ! !---------------------------------------------------!
-
-
-
 
 
             END DO
