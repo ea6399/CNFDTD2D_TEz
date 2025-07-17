@@ -16,8 +16,8 @@ set ylabel "y"
 set title "Animation Hz"
 
 block1 = 5
-block2= 15
-block3 = 20
+block2= 25
+block3 = 50
 
 splot 'data/Ez.txt' index block1 matrix with image
 splot 'data/Ez.txt' index block2 matrix with image 
