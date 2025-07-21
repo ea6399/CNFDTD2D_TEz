@@ -183,7 +183,7 @@ MODULE fdtd
                   Hxy(Nx-1, Nx)     =   2.d0
                   Hxy(Nx, Nx)       = - 1.d0
 
-                  Hxy = cn%bx * cn%by * Hxy
+                  Hxy = - cn%bx * cn%by * Hxy
                   
 
 
@@ -313,6 +313,25 @@ MODULE fdtd
                   !------------------- Ecriture du vecteur rhs --------------------!
                   !--------------------------------------------------------------!
 
+                                       ! Mise à jour explicite de Ez
+                  DO i = 1, Nx-1
+                        DO j = 1, Ny-1
+                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
+                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
+                        END DO
+                  END DO
+
+                  !Injection de source
+                  cn%Ez(i_src,j_src) = Esrc(n)        
+
+                                                      ! CDT DE BORD / PMC
+                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
+                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
+                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
+                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
+
                    ! On enregistre les résultats du temps précédent
                   cn%Hx = B_pec(0 : Nx, 0 : Ny)
                   cn%Hy = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
@@ -369,28 +388,6 @@ MODULE fdtd
                         !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
                         cn%rhs(idx_Hy) = cn%rhs(idx_Hy + 1) 
                   END DO
-
-
-                  
-
-                                       ! Mise à jour explicite de Ez
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
-                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
-                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
-                        END DO
-                  END DO
-
-                  !Injection de source
-                  cn%Ez(i_src,j_src) = Esrc(n)        
-
-                                                      ! CDT DE BORD / PMC
-                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
-                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
-                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
-                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
 
 
                   ! Résolution du système linéaire
