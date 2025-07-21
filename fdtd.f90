@@ -41,11 +41,7 @@ MODULE fdtd
             ALLOCATE(cn%B   (  0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
-            ALLOCATE(cn%A   (     0:2 * (Nx + 1) * (Ny + 1) - 1 , 0:2*(Ny + 1)*(Nx + 1) - 1    ) )              ! Matrice A entière
-            ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
 
             cn%N_d = (/ (10*i, i = 0,10) /)
             ! PRINT *, 'N_d = ', cn%N_d
@@ -78,14 +74,10 @@ MODULE fdtd
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a2/dx = ', cn%a2 / cn%dx
 
             ! Initialisation des champs
-            cn%A = 0.d0
             cn%B = 0.d0
-            cn%J = 0.d0
             cn%Ex = 0.d0
             cn%Ey = 0.d0
             cn%Hz = 0.d0
-            cn%c_E = 1.0d0 / (epsilon_0 * cn%dx)
-            cn%c_H = 1.0d0 / (mu_0 * cn%dx)
 
 
       END SUBROUTINE init
@@ -111,15 +103,14 @@ MODULE fdtd
             ! Variables locales
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
-            INTEGER :: info
-            INTEGER :: n, m, nvec, nrow, ncol
+            INTEGER :: n, m, nrow, ncol
             INTEGER :: i,j, idx_Ex, idx_Ey
             INTEGER :: i1
             INTEGER :: snapshot
             REAL(8), ALLOCATABLE :: B_pec(:,:)
-            REAL(8) :: rhs_old
+
             ! Mumps variables
-            INTEGER(8) :: nmps, nnz, irn, jcn, irhs
+            INTEGER(8) :: nnz
             INTEGER :: counter_nnz
 
             ALLOCATE(B_pec( 0 : 2 * (Nx + 1) - 1 , 0 : (Ny + 1 ) - 1 ))
@@ -275,6 +266,7 @@ MODULE fdtd
             ALLOCATE(mumps%RHS(0 : nrow * ncol / 2 - 1))        ! nrow = 2 (Nx + 1) | ncol = 2 (Ny + 1) 
             print *, "size rhs ", size(mumps%RHS)
             mumps%RHS = 0.d0
+            i1 = Nx + 1
 
             DO n = 0, Nt - 1
 
@@ -288,9 +280,6 @@ MODULE fdtd
 
 
                    ! Mise à jour explicite de Hz
-                  !Injection de source
-                  cn%Hz(i_src,j_src) = Esrc(n)
-
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
                               cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
@@ -306,20 +295,21 @@ MODULE fdtd
                   cn%Hz(0 ,:)  = cn%Hz(1,:)             ! Bord gauche
                   cn%Hz(Nx,:)  = cn%Hz(Nx-1,:)          ! Bord droit
 
+                  !Injection de source
+                  cn%Hz(i_src,j_src) = Esrc(n)
+
 
                    ! On enregistre les résultats du temps précédent
                   cn%Ex = B_pec(0 : Nx, 0 : Ny)
                   cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
 
-                  irhs = 0
-                  rhs_old = 0.d0
 
                   ! Second membre Ex
                   ! RHS : 0 - > nrow * ncol / 2 - 1 = 2 * (Nx + 1) * (Ny + 1) 
                   DO i = 0,  Nx - 1
                         DO j = 1, Ny - 1
                               idx_Ex = i * (Nx + 1) + j 
-                              print *, 'idx_Ex = ', idx_Ex
+                              !print *, 'idx_Ex = ', idx_Ex
                               mumps%RHS(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         &
                                           + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )               &
                                           - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )           &
@@ -327,6 +317,9 @@ MODULE fdtd
                                           + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
                         END DO
                   END DO
+                  ! Condition de bord électrique
+                  cn%Ex(0,:) = 0.d0
+                  cn%Ex(Nx,:)= 0.d0
 
 
 
@@ -334,7 +327,7 @@ MODULE fdtd
                   DO i = 1 , Nx - 1
                         DO j = 0,  Ny - 1
                               idx_Ey = (Nx + 1)*(Ny + 1) + i * (Nx + 1) + j
-                              print *, 'idx_Ey = ', idx_Ey
+                              !print *, 'idx_Ey = ', idx_Ey
                               mumps%RHS(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
                                           + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
                                           - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
@@ -342,6 +335,9 @@ MODULE fdtd
                                           - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
                         END DO
                   END DO
+
+                  cn%Ey(:,0) = 0.d0
+                  cn%Ey(:,Ny)= 0.d0
 
 
                   ! Résolution du système linéaire
@@ -351,12 +347,6 @@ MODULE fdtd
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
                   B_pec = reshape(mumps%RHS, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
                   !B_pec = mumps%RHS
-
-                  ! CONDITION DE BORD / PEC
-                  B_pec(:,0)         = 0.d0
-                  B_pec(:,Ny)        = 0.d0
-                  B_pec(Nx + 1, :)   = 0.d0
-                  B_pec(2* (Nx + 1), :) = 0.d0
 
 
                   ! Ecriture dans le fichier
@@ -406,15 +396,6 @@ MODULE fdtd
             END IF
             IF (ALLOCATED(cn%Hz)) THEN
             DEALLOCATE(cn%Hz)
-            END IF
-            IF (ALLOCATED(cn%c_E)) THEN
-            DEALLOCATE(cn%c_E)
-            END IF
-            IF (ALLOCATED(cn%c_H)) THEN
-            DEALLOCATE(cn%c_H)
-            END IF
-            IF (ALLOCATED(cn%A)) THEN
-            DEALLOCATE(cn%A)
             END IF
             IF (ALLOCATED(cn%B)) THEN
             DEALLOCATE(cn%B)
