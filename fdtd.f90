@@ -260,10 +260,11 @@ MODULE fdtd
                    ! Mise à jour explicite de Ez
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
-                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
-                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
+                              cn%Ez(i,j) = cn%Ez(i,j) + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )                   &
+                                                      - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   
+                                                      
                         END DO
                   END DO
 
