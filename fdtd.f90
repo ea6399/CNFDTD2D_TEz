@@ -106,7 +106,7 @@ MODULE fdtd
             WRITE(*,'(/,/,/,/,/,"Entering MUMPS Solver",/,/,/,/,/)')
 
             mumps%COMM = 0                ! 0 pour séquentiel
-            mumps%SYM  = 2                ! 1 pour sym déf pos / 2 pour symétrique général
+            mumps%SYM  = 1                ! 1 pour sym déf pos / 2 pour symétrique général
             mumps%PAR  = 1                ! 1 : L'host est le seul processeur
 
             !-----------------------------!
@@ -218,7 +218,7 @@ MODULE fdtd
 
             ! Analyse MUMPS
             mumps%JOB = 1
-            mumps%ICNTL(1:3) = 0
+            !mumps%ICNTL(1:3) = 0
             CALL DMUMPS(mumps)
 
             ! Factorisation MUMPS
@@ -236,7 +236,7 @@ MODULE fdtd
             !-------------------------------------------------------------!
             WRITE(*, '(/, T5, "Injection de la source en ", I5, I5)') i_src, j_src
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
-            snapshot = 100
+            snapshot = 200
 
             m = 0
 
@@ -263,29 +263,43 @@ MODULE fdtd
                   ! Second membre Hx
                   ! RHS : 0 - > nrow * ncol / 2 - 1 = 2 * (Nx + 1) * (Ny + 1) 
                   DO i = 0,  Nx - 1
-                        DO j = 1, Ny - 1
+                        DO j = 0, Ny - 1
                               idx_Hx = i * (Nx + 1) + j 
                               !print *, 'idx_Hx = ', idx_Hx
-                              mumps%RHS(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)               &
-                                          + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )               &
-                                          - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )           &
-                                          + cn%bx*cn%by * ( cn%Hy(i + 1 , j - 1) - cn%Hy(i, j - 1) )       &
-                                          - 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i, j-1))
+                              IF( j > 0 ) THEN
+                                    mumps%RHS(idx_Hx) = (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                    &
+                                                + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )               &
+                                                - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )           &
+                                                + cn%bx*cn%by * ( cn%Hy(i + 1 , j - 1) - cn%Hy(i, j - 1) )       &
+                                                - 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i, j-1))
+                              ELSE 
+                                    mumps%RHS(idx_Hx) = (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                    &
+                                                + cn%bx**2 * ( cn%Hx(i, j + 1) )                                 &
+                                                - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )           &
+                                                - 2.d0 * cn%a2 * (cn%Ez(i,j))
+                              END IF
                         END DO
                   END DO
 
 
 
                   ! Second membre Hy
-                  DO i = 1 , Nx - 1
+                  DO i = 0 , Nx - 1
                         DO j = 0,  Ny - 1
                               idx_Hy = (Nx + 1)*(Ny + 1) + i * (Nx + 1) + j
                               !print *, 'idx_Hy = ', idx_Hy
-                              mumps%RHS(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                         &
-                                          + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
-                                          - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
-                                          + cn%bx*cn%by * ( cn%Hx(i-1, j + 1) - cn%Hx(i-1, j) )                    &
-                                          + 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i-1, j))
+                              IF ( i > 0) THEN
+                                    mumps%RHS(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                         &
+                                                + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
+                                                - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
+                                                + cn%bx*cn%by * ( cn%Hx(i-1, j + 1) - cn%Hx(i-1, j) )                    &
+                                                + 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i-1, j))
+                              ELSE
+                                    mumps%RHS(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                         &
+                                                + cn%by**2 * ( cn%Hy(i + 1, j)    )                                      &
+                                                - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
+                                                + 2.d0 * cn%a2 * (cn%Ez(i,j))
+                              END IF
                         END DO
                   END DO
 
@@ -298,7 +312,14 @@ MODULE fdtd
                   ! Contient le temps n+1 pour les champs H
                   B_pec = reshape(mumps%RHS, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
 
+                  ! CDT DE BORD / PEC
+                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
+                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
+                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
+                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
 
+                  !Injection de source
+                  cn%Ez(i_src,j_src) = Esrc(n)
 
                     ! Mise à jour explicite de Ez
                   DO i = 1, Nx-1
@@ -311,14 +332,7 @@ MODULE fdtd
                         END DO
                   END DO
 
-                                    ! CDT DE BORD / PEC
-                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
-                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
-                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
-                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
-
-                  !Injection de source
-                  cn%Ez(i_src,j_src) = Esrc(n)
+                  
 
 
                   ! Ecriture dans le fichier
@@ -338,6 +352,9 @@ MODULE fdtd
 
 
             END DO
+
+            mumps%JOB = - 2
+            CALL dmumps(mumps)
 
             WRITE(*, '(/, t5, A, I5)') "Nombre de blocs : ", m
             
