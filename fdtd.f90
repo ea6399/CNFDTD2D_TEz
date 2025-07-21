@@ -106,7 +106,7 @@ MODULE fdtd
             WRITE(*,'(/,/,/,/,/,"Entering MUMPS Solver",/,/,/,/,/)')
 
             mumps%COMM = 0                ! 0 pour séquentiel
-            mumps%SYM  = 2                ! 2 pour symétrique général
+            mumps%SYM  = 2                ! 1 pour sym déf pos / 2 pour symétrique général
             mumps%PAR  = 1                ! 1 : L'host est le seul processeur
 
             !-----------------------------!
@@ -288,7 +288,7 @@ MODULE fdtd
                         DO j = 1, Ny - 1
                               idx_Hx = i * (Nx + 1) + j 
                               !print *, 'idx_Hx = ', idx_Hx
-                              mumps%RHS(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                         &
+                              mumps%RHS(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)               &
                                           + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )               &
                                           - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )           &
                                           + cn%bx*cn%by * ( cn%Hy(i + 1 , j - 1) - cn%Hy(i, j - 1) )       &
@@ -311,7 +311,7 @@ MODULE fdtd
                         DO j = 0,  Ny - 1
                               idx_Hy = (Nx + 1)*(Ny + 1) + i * (Nx + 1) + j
                               !print *, 'idx_Hy = ', idx_Hy
-                              mumps%RHS(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                              &
+                              mumps%RHS(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                         &
                                           + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
                                           - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
                                           + cn%bx*cn%by * ( cn%Hx(i-1, j + 1) - cn%Hx(i-1, j) )                    &
