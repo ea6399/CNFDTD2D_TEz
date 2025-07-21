@@ -298,10 +298,10 @@ MODULE fdtd
                   
                   ! Conditoon aux bords du champ magnétique
                   DO i = 0, Nx
-                  idx_Hx = i * (Nx + 1)
-                  j = 0
-                  !print *, "idx_Hx = ", idx_Hx, "i, j = ", i, j
-                  mumps%RHS(idx_Hx) = mumps%RHS(idx_Hx + 1) 
+                        idx_Hx = i * (Nx + 1)
+                        j = 0
+                        !print *, "idx_Hx = ", idx_Hx, "i, j = ", i, j
+                        mumps%RHS(idx_Hx) = mumps%RHS(idx_Hx + 1) 
                   END DO
 
 
@@ -322,11 +322,11 @@ MODULE fdtd
 
                   ! Condition aux bords du champ magnétique
                   DO j = 0, Ny
-                  idx_Hy = (Nx + 1) * (Ny + 1) + j
-                  i = 0
-                  !print *, ""
-                  !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
-                  mumps%rhs(idx_Hy) = mumps%rhs(idx_Hy + 1) 
+                        idx_Hy = (Nx + 1) * (Ny + 1) + j
+                        i = 0
+                        !print *, ""
+                        !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
+                        mumps%rhs(idx_Hy) = mumps%rhs(idx_Hy + 1) 
                   END DO
 
 
