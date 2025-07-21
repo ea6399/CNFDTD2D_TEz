@@ -371,18 +371,18 @@ MODULE fdtd
                                                 - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                         &
                                                 + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                         &
                                                 - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
-                              ELSE IF ( i == 0  .AND. j < Ny)  THEN
+                              ELSE IF ( i == 0  .AND. j < Ny )  THEN
                                     mumps%RHS(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
                                                 + cn%by**2 * ( cn%Ey(i + 1, j)    )                                           &
                                                 - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                         &
                                                 - 2.d0 * cn%a1 * (cn%Hz(i,j))
-                              ELSE IF ( i == Nx .AND. j < Ny)  THEN
+                              ELSE IF ( i == Nx .AND. j < Ny )  THEN
                                     mumps%RHS(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
                                                 + cn%by**2 * ( cn%Ey(i - 1, j)     )                                          &
                                                 - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                         &
                                                 + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                          &
                                                 - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
-                              ELSE IF ( j == Ny .AND. 0 < i .AND. i < Nx) THEN
+                              ELSE IF ( j == Ny .AND. 0 < i .AND. i < Nx ) THEN
                                     mumps%RHS(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
                                                 + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                         &
                                                 - cn%bx*cn%by * (   - cn%Ex(i , j)  )                                         &
