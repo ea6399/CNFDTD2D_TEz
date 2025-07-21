@@ -15,10 +15,6 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
                   REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
-                  REAL(8), ALLOCATABLE :: B(:)
-                  REAL(8), ALLOCATABLE :: J(:,:)
-                  REAL(8), ALLOCATABLE :: A(:,:)
-                  REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
                   REAL(8) :: a1, a2, bx, by
             CONTAINS
                   ! Méthodes
@@ -38,14 +34,9 @@ MODULE fdtd
             ! Initialisation des variables
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
-            ALLOCATE(cn%B   (  0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
             ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%J   (                0 : Nx  ,  0 : Ny                            ) )
             ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
-            ALLOCATE(cn%A   (     0:2 * (Nx + 1) * (Ny + 1) - 1 , 0:2*(Ny + 1)*(Nx + 1) - 1    ) )              ! Matrice A entière
-            ALLOCATE(cn%c_E (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%c_H (                    0:Nx, 0:Ny                               ) )
 
             cn%N_d = (/ (10*i, i = 0,10) /)
             ! PRINT *, 'N_d = ', cn%N_d
@@ -78,31 +69,12 @@ MODULE fdtd
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a2/dx = ', cn%a2 / cn%dx
 
             ! Initialisation des champs
-            cn%A = 0.d0
-            cn%B = 0.d0
-            cn%J = 0.d0
             cn%Ex = 0.d0
             cn%Ey = 0.d0
             cn%Hz = 0.d0
-            cn%c_E = 1.0d0 / (epsilon_0 * cn%dx)
-            cn%c_H = 1.0d0 / (mu_0 * cn%dx)
 
 
       END SUBROUTINE init
-
-      INTEGER FUNCTION id_Ex(i,j)
-            INTEGER, INTENT(in) :: i,j
-
-            id_Ex = i * (Nx + 1) + j
-
-      END FUNCTION id_Ex
-
-      INTEGER FUNCTION id_Ey(i,j)
-            INTEGER, INTENT(in) :: i,j
-
-            id_Ey =  (Nx + 1) * (Ny + 1) + i * (Nx+1) + j
-
-      END FUNCTION id_Ey
 
       SUBROUTINE compute_fdtd(cn)
             ! Class
@@ -111,15 +83,13 @@ MODULE fdtd
             ! Variables locales
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
-            INTEGER :: info
-            INTEGER :: n, m, nvec, nrow, ncol
+            INTEGER :: n, m, nrow, ncol
             INTEGER :: i,j, idx_Ex, idx_Ey
             INTEGER :: i1
             INTEGER :: snapshot
             REAL(8), ALLOCATABLE :: B_pec(:,:)
-            REAL(8) :: rhs_old
             ! Mumps variables
-            INTEGER(8) :: nmps, nnz, irn, jcn, irhs
+            INTEGER(8) :: nnz
             INTEGER :: counter_nnz
 
             ALLOCATE(B_pec( 0 : 2 * (Nx + 1) - 1 , 0 : (Ny + 1 ) - 1 ))
@@ -275,6 +245,7 @@ MODULE fdtd
             ALLOCATE(mumps%RHS(0 : nrow * ncol / 2 - 1))        ! nrow = 2 (Nx + 1) | ncol = 2 (Ny + 1) 
             print *, "size rhs ", size(mumps%RHS)
             mumps%RHS = 0.d0
+            i1 = Nx + 1
 
             DO n = 0, Nt - 1
 
@@ -310,9 +281,6 @@ MODULE fdtd
                    ! On enregistre les résultats du temps précédent
                   cn%Ex = B_pec(0 : Nx, 0 : Ny)
                   cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
-
-                  irhs = 0
-                  rhs_old = 0.d0
 
                   ! Second membre Ex
                   ! RHS : 0 - > nrow * ncol / 2 - 1 = 2 * (Nx + 1) * (Ny + 1) 
@@ -464,20 +432,11 @@ MODULE fdtd
             IF (ALLOCATED(cn%Ex)) THEN
             DEALLOCATE(cn%Ex)
             END IF
+            IF (ALLOCATED(cn%Ey)) THEN
+            DEALLOCATE(cn%Ey)
+            END IF
             IF (ALLOCATED(cn%Hz)) THEN
             DEALLOCATE(cn%Hz)
-            END IF
-            IF (ALLOCATED(cn%c_E)) THEN
-            DEALLOCATE(cn%c_E)
-            END IF
-            IF (ALLOCATED(cn%c_H)) THEN
-            DEALLOCATE(cn%c_H)
-            END IF
-            IF (ALLOCATED(cn%A)) THEN
-            DEALLOCATE(cn%A)
-            END IF
-            IF (ALLOCATED(cn%B)) THEN
-            DEALLOCATE(cn%B)
             END IF
       
 
