@@ -272,10 +272,11 @@ MODULE fdtd
             m = 0
 
             ! Initialisation du RHS pour MUMPS
-            ALLOCATE(mumps%RHS(0 : nrow - 1))
+            ALLOCATE(mumps%RHS(0 : nrow * ncol / 2 - 1))        ! nrow = 2 (Nx + 1) | ncol = 2 (Ny + 1) 
+            print *, "size rhs ", size(mumps%RHS)
             mumps%RHS = 0.d0
 
-             DO n = 0, Nt - 1
+            DO n = 0, Nt - 1
 
                   IF (MOD(n,5*snapshot) == 0) THEN
                         WRITE(*, '(/, T5, "itération temporelle : ",I4)') n
@@ -314,35 +315,32 @@ MODULE fdtd
                   rhs_old = 0.d0
 
                   ! Second membre Ex
-                  DO irhs = 0, Nx
-                        DO i = 0,  Nx - 1
-                              DO j = 1, Ny -1
-                                    rhs_old =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         &
-                                                + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )               &
-                                                - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )           &
-                                                + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )       &
-                                                + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
-                              END DO
+                  ! RHS : 0 - > nrow * ncol / 2 - 1 = 2 * (Nx + 1) * (Ny + 1) 
+                  DO i = 0,  Nx - 1
+                        DO j = 1, Ny - 1
+                              idx_Ex = i * (Nx + 1) + j 
+                              print *, 'idx_Ex = ', idx_Ex
+                              mumps%RHS(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         &
+                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )               &
+                                          - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )           &
+                                          + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )       &
+                                          + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
                         END DO
-                        mumps%RHS(irhs) = rhs_old
                   END DO
 
 
 
-                  rhs_old = 0.d0
                   ! Second membre Ey
-                  DO irhs = Nx + 1, 2 * Nx + 1
-                        DO i = 1 , Nx - 1
-                              DO j = 0,  Ny - 1
-                                    ! Calcul du second membre Ex
-                                    rhs_old =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
-                                                + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                                - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
-                                                + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
-                                                - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
-                              END DO
+                  DO i = 1 , Nx - 1
+                        DO j = 0,  Ny - 1
+                              idx_Ey = (Nx + 1)*(Ny + 1) + i * (Nx + 1) + j
+                              print *, 'idx_Ey = ', idx_Ey
+                              mumps%RHS(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
+                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
+                                          - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
+                                          + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
+                                          - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
                         END DO
-                        mumps%RHS(irhs) = rhs_old
                   END DO
 
 
@@ -351,8 +349,8 @@ MODULE fdtd
                   CALL DMUMPS(mumps)
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
-                  !B_pec = reshape(mumps%RHS, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
-                  B_pec = mumps%RHS
+                  B_pec = reshape(mumps%RHS, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+                  !B_pec = mumps%RHS
 
                   ! CONDITION DE BORD / PEC
                   B_pec(:,0)         = 0.d0
@@ -375,10 +373,6 @@ MODULE fdtd
                         WRITE(idfile + 1, *)
                         WRITE(idfile    , *)
                   END IF
-                  ! ! !---------------------------------------------------!
-
-
-
 
 
             END DO
