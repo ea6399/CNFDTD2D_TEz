@@ -5,7 +5,6 @@ MODULE numerics
       REAL(8), PARAMETER :: pi = atan(1.0d0) * 4.0d0
       REAL(8), PARAMETER :: EPS = 1.0d-10                     ! Epsilon pour les comparaisons
       REAL(8), PARAMETER :: epsilon_0 = 8.854187817d-12                 ! Permittivité du vide
-      REAL(8), PARAMETER :: epsilon_r = 4.0d0 * epsilon_0               ! Permittivité relative
       REAL(8), PARAMETER :: mu_0 = 1.256637061d-6                       ! Perméabilité du vide
       REAL(8), PARAMETER :: c = 1.0d0 / sqrt(epsilon_0 * mu_0)          ! Vitesse de la lumière
 

@@ -14,11 +14,7 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: N_d(:)
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
-                  REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
-                  REAL(8), ALLOCATABLE :: B(:)
-                  REAL(8), ALLOCATABLE :: J(:,:)
-                  REAL(8), ALLOCATABLE :: A(:,:)
-                  REAL(8), ALLOCATABLE :: c_E(:,:), c_H(:,:)
+                  REAL(8), ALLOCATABLE :: Hx(:,:), Hy(:,:), Ez(:,:)
                   REAL(8) :: a1, a2, bx, by
             CONTAINS
                   ! Méthodes
@@ -38,10 +34,9 @@ MODULE fdtd
             ! Initialisation des variables
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
-            ALLOCATE(cn%B   (  0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
-            ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
+            ALLOCATE(cn%Hx  (                    0:Nx, 0:Ny                               ) )
+            ALLOCATE(cn%Hy  (                    0:Nx, 0:Ny                               ) )
+            ALLOCATE(cn%Ez  (                 0 : Nx , 0:Ny                               ) )
 
             cn%N_d = (/ (10*i, i = 0,10) /)
             ! PRINT *, 'N_d = ', cn%N_d
@@ -60,8 +55,6 @@ MODULE fdtd
             cn%dt = 0.98d0 / ( c * sqrt(  1.0d0 / (cn%dx * cn%dx)  + 1.0d0 / (cn%dy * cn%dy) ) )
             WRITE(*, '(/,T5,A,ES17.3, /)') 'dt = ', cn%dt
 
-            WRITE(*, '(/,T5, A,F17.12, /)') 'Courant number cdt/dx = ', abs(c * cn%dt / cn%dx)
-
             cn%a1 = cn%dt / (2.d0 * epsilon_0) 
             cn%a2 = cn%dt / (2.d0 * mu_0)
             cn%bx = c * cn%dt / (2.d0 * cn%dx)
@@ -74,27 +67,12 @@ MODULE fdtd
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a2/dx = ', cn%a2 / cn%dx
 
             ! Initialisation des champs
-            cn%B = 0.d0
-            cn%Ex = 0.d0
-            cn%Ey = 0.d0
-            cn%Hz = 0.d0
+            cn%Hx = 0.d0
+            cn%Hy = 0.d0
+            cn%Ez = 0.d0
 
 
       END SUBROUTINE init
-
-      INTEGER FUNCTION id_Ex(i,j)
-            INTEGER, INTENT(in) :: i,j
-
-            id_Ex = i * (Nx + 1) + j
-
-      END FUNCTION id_Ex
-
-      INTEGER FUNCTION id_Ey(i,j)
-            INTEGER, INTENT(in) :: i,j
-
-            id_Ey =  (Nx + 1) * (Ny + 1) + i * (Nx+1) + j
-
-      END FUNCTION id_Ey
 
       SUBROUTINE compute_fdtd(cn)
             ! Class
@@ -104,7 +82,7 @@ MODULE fdtd
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
             INTEGER :: n, m, nrow, ncol
-            INTEGER :: i,j, idx_Ex, idx_Ey
+            INTEGER :: i,j, idx_Hx, idx_Hy
             INTEGER :: i1
             INTEGER :: snapshot
             REAL(8), ALLOCATABLE :: B_pec(:,:)
@@ -135,8 +113,8 @@ MODULE fdtd
             ! Initialisation d'un package !
             !-----------------------------!
             ! On résout AX = B, B ayant Ny + 1 colonnes, et 2 * (Nx + 1 ) lignes
-            ! | Ex |
-            ! | Ey |
+            ! | Hx |
+            ! | Hy |
             !        ______ _________
             !       |       |        |
             !       |  Exx  |  Exy   |
@@ -250,8 +228,8 @@ MODULE fdtd
 
 
             ! Ouverture du fichier de sortie
-            OPEN(idfile , file = "data/Ex.txt", status = "replace", action = "write", form = "formatted")
-            OPEN(idfile + 1 , file = "data/Hz.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(idfile , file = "data/Hx.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(idfile + 1 , file = "data/Ez.txt", status = "replace", action = "write", form = "formatted")
             
             !-------------------------------------------------------------!
             !------------------- Boucle temporelle -----------------------!
@@ -279,65 +257,77 @@ MODULE fdtd
                   !--------------------------------------------------------------!
 
 
-                   ! Mise à jour explicite de Hz
+                   ! Mise à jour explicite de Ez
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
-                              cn%Hz(i,j) = cn%Hz(i,j) + cn%a2 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Ex(i, j + 1) - cn%Ex(i,j) )                   &
-                                                      - cn%a2 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Ey(i + 1, j) - cn%Ey(i,j) )
+                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
+                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
                         END DO
                   END DO
 
-                                    ! CDT DE BORD / PMC
-                  cn%Hz(: ,0)  = cn%Hz(:, 1)            ! Bord inférieur
-                  cn%Hz(: ,Ny) = cn%Hz(:,Ny-1)          ! Bord supérieur
-                  cn%Hz(0 ,:)  = cn%Hz(1,:)             ! Bord gauche
-                  cn%Hz(Nx,:)  = cn%Hz(Nx-1,:)          ! Bord droit
+                                    ! CDT DE BORD / PEC
+                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
+                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
+                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
+                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
 
                   !Injection de source
-                  cn%Hz(i_src,j_src) = Esrc(n)
+                  cn%Ez(i_src,j_src) = Esrc(n)
 
 
                    ! On enregistre les résultats du temps précédent
-                  cn%Ex = B_pec(0 : Nx, 0 : Ny)
-                  cn%Ey = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
+                  cn%Hx = B_pec(0 : Nx, 0 : Ny)
+                  cn%Hy = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
 
 
-                  ! Second membre Ex
+                  ! Second membre Hx
                   ! RHS : 0 - > nrow * ncol / 2 - 1 = 2 * (Nx + 1) * (Ny + 1) 
                   DO i = 0,  Nx - 1
                         DO j = 1, Ny - 1
-                              idx_Ex = i * (Nx + 1) + j 
-                              !print *, 'idx_Ex = ', idx_Ex
-                              mumps%RHS(idx_Ex) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Ex(i,j)                         &
-                                          + cn%bx**2 * ( cn%Ex(i, j - 1) + cn%Ex(i, j + 1) )               &
-                                          - cn%bx*cn%by * ( cn%Ey(i + 1,  j)     - cn%Ey(i, j) )           &
-                                          + cn%bx*cn%by * ( cn%Ey(i + 1 , j - 1) - cn%Ey(i, j - 1) )       &
-                                          + 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i, j-1))
+                              idx_Hx = i * (Nx + 1) + j 
+                              !print *, 'idx_Hx = ', idx_Hx
+                              mumps%RHS(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                         &
+                                          + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )               &
+                                          - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )           &
+                                          + cn%bx*cn%by * ( cn%Hy(i + 1 , j - 1) - cn%Hy(i, j - 1) )       &
+                                          - 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i, j-1))
                         END DO
                   END DO
-                  ! Condition de bord électrique
-                  cn%Ex(0,:) = 0.d0
-                  cn%Ex(Nx,:)= 0.d0
+                  
+                  ! Conditoon aux bords du champ magnétique
+                  DO i = 0, Nx
+                  idx_Hx = i * (Nx + 1)
+                  j = 0
+                  !print *, "idx_Hx = ", idx_Hx, "i, j = ", i, j
+                  mumps%RHS(idx_Hx) = mumps%RHS(idx_Hx + 1) 
+                  END DO
 
 
 
-                  ! Second membre Ey
+                  ! Second membre Hy
                   DO i = 1 , Nx - 1
                         DO j = 0,  Ny - 1
-                              idx_Ey = (Nx + 1)*(Ny + 1) + i * (Nx + 1) + j
-                              !print *, 'idx_Ey = ', idx_Ey
-                              mumps%RHS(idx_Ey) =      (1.d0 - 2.d0 * cn%by**2)*cn%Ey(i,j)                              &
-                                          + cn%by**2 * ( cn%Ey(i - 1, j) + cn%Ey(i + 1, j)    )                    &
-                                          - cn%bx*cn%by * ( cn%Ex(i , j + 1)  - cn%Ex(i , j)  )                    &
-                                          + cn%bx*cn%by * ( cn%Ex(i-1, j + 1) - cn%Ex(i-1, j) )                    &
-                                          - 2.d0 * cn%a1 * (cn%Hz(i,j) - cn%Hz(i-1, j))
+                              idx_Hy = (Nx + 1)*(Ny + 1) + i * (Nx + 1) + j
+                              !print *, 'idx_Hy = ', idx_Hy
+                              mumps%RHS(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                              &
+                                          + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
+                                          - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
+                                          + cn%bx*cn%by * ( cn%Hx(i-1, j + 1) - cn%Hx(i-1, j) )                    &
+                                          + 2.d0 * cn%a2 * (cn%Ez(i,j) - cn%Ez(i-1, j))
                         END DO
                   END DO
 
-                  cn%Ey(:,0) = 0.d0
-                  cn%Ey(:,Ny)= 0.d0
+
+                  ! Condition aux bords du champ magnétique
+                  DO j = 0, Ny
+                  idx_Hy = (Nx + 1) * (Ny + 1) + j
+                  i = 0
+                  !print *, ""
+                  !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
+                  mumps%rhs(idx_Hy) = mumps%rhs(idx_Hy + 1) 
+                  END DO
 
 
                   ! Résolution du système linéaire
@@ -354,8 +344,8 @@ MODULE fdtd
                         m = m + 1
                         DO i = 0, Nx, 2
                               DO j = 0, Ny, 2
-                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
-                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Ey(i,j)
+                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Ez(i,j)
+                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Hy(i,j)
                               END DO
                               WRITE(idfile + 1, *)
                               write(idfile    , *)
@@ -391,14 +381,11 @@ MODULE fdtd
             IF (ALLOCATED(cn%S)) THEN
             DEALLOCATE(cn%S)
             END IF
-            IF (ALLOCATED(cn%Ex)) THEN
-            DEALLOCATE(cn%Ex)
+            IF (ALLOCATED(cn%Hx)) THEN
+            DEALLOCATE(cn%Hx)
             END IF
-            IF (ALLOCATED(cn%Hz)) THEN
-            DEALLOCATE(cn%Hz)
-            END IF
-            IF (ALLOCATED(cn%B)) THEN
-            DEALLOCATE(cn%B)
+            IF (ALLOCATED(cn%Ez)) THEN
+            DEALLOCATE(cn%Ez)
             END IF
       
 
