@@ -255,7 +255,7 @@ MODULE fdtd
                   !--------------------------------------------------------------!
                   !------------------- Ecriture du vecteur B --------------------!
                   !--------------------------------------------------------------!
-                   ! On enregistre les résultats du temps précédent
+                   ! On enregistre les résultats du temps n
                   cn%Hx = B_pec(0 : Nx, 0 : Ny)
                   cn%Hy = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
 
@@ -290,12 +290,14 @@ MODULE fdtd
                   END DO
 
 
-                  ! Résolution du système linéaire
+                  ! Résolution du système linéaire pour Hx et Hy au temps n + 1
                   mumps%JOB = 3
                   CALL DMUMPS(mumps)
 
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
+                  ! Contient le temps n+1 pour les champs H
                   B_pec = reshape(mumps%RHS, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+
 
 
                     ! Mise à jour explicite de Ez
