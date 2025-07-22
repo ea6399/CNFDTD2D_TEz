@@ -310,29 +310,9 @@ MODULE fdtd
                   END IF
 
                   !--------------------------------------------------------------!
-                  !------------------- Ecriture du vecteur rhs --------------------!
+                  !------------------- Ecriture du vecteur rhs ------------------!
                   !--------------------------------------------------------------!
-
-                                       ! Mise à jour explicite de Ez
-                  DO i = 1, Nx-1
-                        DO j = 1, Ny-1
-                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
-                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
-                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
-                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
-                        END DO
-                  END DO
-
-                  !Injection de source
-                  cn%Ez(i_src,j_src) = Esrc(n)        
-
-                                                      ! CDT DE BORD / PMC
-                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
-                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
-                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
-                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
-
-                   ! On enregistre les résultats du temps précédent
+                   ! On enregistre les résultats du temps n
                   cn%Hx = B_pec(0 : Nx, 0 : Ny)
                   cn%Hy = B_pec(i1 : i1 + Nx, 0 : Ny)                   !i1 = Nx + 1
                   
@@ -353,13 +333,13 @@ MODULE fdtd
                         END DO
                   END DO
 
-                  ! Conditoon aux bords du champ magnétique
-                  DO i = 0, Nx
-                        idx_Hx         = i * (Nx + 1)
-                        j = 0
-                        !print *, "idx_Hx = ", idx_Hx, "i, j = ", i, j
-                        cn%rhs(idx_Hx) = cn%rhs(idx_Hx + 1) 
-                  END DO
+                  ! ! Conditoon aux bords du champ magnétique
+                  ! DO i = 0, Nx
+                  !       idx_Hx         = i * (Nx + 1)
+                  !       j = 0
+                  !       !print *, "idx_Hx = ", idx_Hx, "i, j = ", i, j
+                  !       cn%rhs(idx_Hx) = cn%rhs(idx_Hx + 1) 
+                  ! END DO
 
 
 
@@ -380,22 +360,43 @@ MODULE fdtd
                         END DO
                   END DO
 
-                  ! Condition aux bords du champ magnétique
-                  DO j = 0, Ny
-                        idx_Hy = (Nx + 1) * (Ny + 1) + j
-                        i = 0
-                        !print *, ""
-                        !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
-                        cn%rhs(idx_Hy) = cn%rhs(idx_Hy + 1) 
-                  END DO
+                  ! ! Condition aux bords du champ magnétique
+                  ! DO j = 0, Ny
+                  !       idx_Hy = (Nx + 1) * (Ny + 1) + j
+                  !       i = 0
+                  !       !print *, ""
+                  !       !print *, "idx_Hy = ", idx_Hy, "i, j = ", i, j
+                  !       cn%rhs(idx_Hy) = cn%rhs(idx_Hy + 1) 
+                  ! END DO
 
 
-                  ! Résolution du système linéaire
+                  ! Résolution du système linéaire pour les champs H au temps n + 1
                   CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%rhs, SIZE(cn%rhs), info)
                   !print *, "pass 4"
 
                   ! reshape du vecteur rhs / order = [2,1] fait varier j avant i
                   B_pec = reshape(cn%rhs, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+
+
+
+                                       ! Mise à jour explicite de Ez
+                  DO i = 1, Nx-1
+                        DO j = 1, Ny-1
+                              cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
+                                                                        + cn%Hx(i, j + 1) - cn%Hx(i,j) )                   &
+                                                      + cn%a1 / cn%dx * ( B_pec(i1 + (i + 1),j) - B_pec(i1 + i,j)          &          ! i1 = Nx + 1
+                                                                        + cn%Hy(i + 1, j) - cn%Hy(i,j) )
+                        END DO
+                  END DO
+
+                  !Injection de source
+                  cn%Ez(i_src,j_src) = Esrc(n)        
+
+                                                      ! CDT DE BORD / PMC
+                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
+                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
+                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
+                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
                   
                   ! Ecriture dans le fichier 
                   IF (MOD(n,snapshot) == 0) THEN
