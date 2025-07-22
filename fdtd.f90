@@ -188,21 +188,23 @@ MODULE fdtd
 
 
 
-            ! ! Affichage de la matrice Hxy
-            IF (display_it) THEN
-                  CALL display_matrix(Hxy, "Hxy")
-            END IF
+           
 
             !----------------------------------------------------!
             !------------------ Sous matrice Hyx -----------------!
             !----------------------------------------------------!
 
                   Hyx = transpose(Hxy)
+                  Hxy = Hyx
+                  Hyx = transpose(Hxy)
 
 
 
 
-
+             ! ! Affichage de la matrice Hxy
+            IF (display_it) THEN
+                  CALL display_matrix(Hxy, "Hxy")
+            END IF
 
             ! Affichage de la matrice Hyx
             IF (display_it) THEN
