@@ -11,8 +11,6 @@ MODULE fdtd
       ! Class fdtd
       TYPE :: cnfdtd
                   ! Variables locales
-                  INTEGER, ALLOCATABLE :: N_d(:)
-                  INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
                   REAL(8), ALLOCATABLE :: Hx(:,:), Hy(:,:), Ez(:,:)
                   REAL(8) :: a1, a2, bx, by
@@ -31,28 +29,17 @@ MODULE fdtd
             CLASS(cnfdtd), INTENT(inout) :: cn
             INTEGER :: i
 
-            ! Initialisation des variables
-            ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
-            ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
             ALLOCATE(cn%Hx  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Hy  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%Ez  (                 0 : Nx , 0:Ny                               ) )
 
-            cn%N_d = (/ (10*i, i = 0,10) /)
-            ! PRINT *, 'N_d = ', cn%N_d
-            ! print *, 'size(N_d)' , size(cn%N_d)
 
-            cn%S = (/ (2*i, i = 0,50) /)
-            ! PRINT *, 'S = ', cn%S
-            ! print *, 'size(S)' , size(cn%S)
-
-
-            cn%dx = (c / fmax) / cn%N_d(3) 
+            cn%dx = (c / fmax) / mesh_density 
             cn%dy = cn%dx
             WRITE(*, '(/,T5,A,ES17.3, /)') 'dx = ', cn%dx
 
 
-            cn%dt = 0.98d0 / ( c * sqrt(  1.0d0 / (cn%dx * cn%dx)  + 1.0d0 / (cn%dy * cn%dy) ) )
+            cn%dt = CFL / ( c * sqrt(  1.0d0 / (cn%dx * cn%dx)  + 1.0d0 / (cn%dy * cn%dy) ) )
             WRITE(*, '(/,T5,A,ES17.3, /)') 'dt = ', cn%dt
 
             cn%a1 = cn%dt / (2.d0 * epsilon_0) 
@@ -218,7 +205,7 @@ MODULE fdtd
 
             ! Analyse MUMPS
             mumps%JOB = 1
-            !mumps%ICNTL(1:3) = 0
+            mumps%ICNTL(1:3) = 0
             CALL DMUMPS(mumps)
 
             ! Factorisation MUMPS
@@ -230,6 +217,7 @@ MODULE fdtd
             ! Ouverture du fichier de sortie
             OPEN(idfile , file = "data/Hx.txt", status = "replace", action = "write", form = "formatted")
             OPEN(idfile + 1 , file = "data/Ez.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(1000, file = "data/Ez_obs.txt", status = "replace", action = "write")
             
             !-------------------------------------------------------------!
             !------------------- Boucle temporelle -----------------------!
@@ -263,7 +251,7 @@ MODULE fdtd
                   ! Second membre Hx
                   ! RHS : 0 - > nrow * ncol / 2 - 1 = 2 * (Nx + 1) * (Ny + 1) 
                   DO i = 0,  Nx - 1
-                        DO j = 0, Ny - 1
+                        DO j = 1, Ny - 1
                               idx_Hx = i * (Nx + 1) + j 
                               !print *, 'idx_Hx = ', idx_Hx
                               IF( j > 0 ) THEN
@@ -285,7 +273,7 @@ MODULE fdtd
 
                   ! Second membre Hy
                   DO i = 0 , Nx - 1
-                        DO j = 0,  Ny - 1
+                        DO j = 1,  Ny - 1
                               idx_Hy = (Nx + 1)*(Ny + 1) + i * (Nx + 1) + j
                               !print *, 'idx_Hy = ', idx_Hy
                               IF ( i > 0) THEN
@@ -298,7 +286,7 @@ MODULE fdtd
                                     mumps%RHS(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                         &
                                                 + cn%by**2 * ( cn%Hy(i + 1, j)    )                                      &
                                                 - cn%bx*cn%by * ( cn%Hx(i , j + 1)  - cn%Hx(i , j)  )                    &
-                                                + 2.d0 * cn%a2 * (cn%Ez(i,j))
+                                                + 2.d0 * cn%a2 * (cn%Ez(i,j) )
                               END IF
                         END DO
                   END DO
@@ -311,12 +299,6 @@ MODULE fdtd
                   ! reshape du vecteur B / order = [2,1] fait varier j avant i
                   ! Contient le temps n+1 pour les champs H
                   B_pec = reshape(mumps%RHS, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
-
-                  ! CDT DE BORD / PEC
-                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
-                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
-                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
-                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
 
                   !Injection de source
                   cn%Ez(i_src,j_src) = Esrc(n)
@@ -332,6 +314,13 @@ MODULE fdtd
                         END DO
                   END DO
 
+                  ! CDT DE BORD / PEC
+                  cn%Ez(: ,0)  = 0.d0          ! Bord inférieur
+                  cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
+                  cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
+                  cn%Ez(Nx,:)  = 0.d0          ! Bord droit
+
+                  WRITE(1000, *) n * cn%dt , cn%Ez(i_src, j_src)
                   
 
 
@@ -374,14 +363,11 @@ MODULE fdtd
             CLASS(cnfdtd), INTENT(inout) :: cn
 
             ! Libération de la mémoire
-            IF (ALLOCATED(cn%N_d)) THEN
-            DEALLOCATE(cn%N_d)
-            END IF
-            IF (ALLOCATED(cn%S)) THEN
-            DEALLOCATE(cn%S)
-            END IF
             IF (ALLOCATED(cn%Hx)) THEN
             DEALLOCATE(cn%Hx)
+            END IF
+            IF (ALLOCATED(cn%Hy)) THEN
+            DEALLOCATE(cn%Hy)
             END IF
             IF (ALLOCATED(cn%Ez)) THEN
             DEALLOCATE(cn%Ez)

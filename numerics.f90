@@ -15,10 +15,12 @@ MODULE numerics
       REAL(8), PARAMETER :: a0 = 1.0d0
       REAL(8), PARAMETER :: T = sqrt( log(attfmax) ) / (PI * fmax)      ! Largeur de la gaussienne
       REAL(8), PARAMETER :: t0 = T * sqrt( log(att0) )                  ! Retard de la gaussienne
+      REAL(8), PARAMETER :: CFL = 0.98d0
+      REAL(8), PARAMETER :: mesh_density = 50.d0
 
       ! Global Parameters
-      INTEGER, PARAMETER :: Nt = 10                                   ! Nombre d'échantillons temps
-      INTEGER, PARAMETER :: Nx = 499                                    ! Nombre d'échantillons espace suivant x
+      INTEGER, PARAMETER :: Nt = 1501                                   ! Nombre d'échantillons temps
+      INTEGER, PARAMETER :: Nx = 299                                    ! Nombre d'échantillons espace suivant x
       INTEGER, PARAMETER :: Ny = Nx                                    ! Nombre d'échantillons espace suivant y
       INTEGER, PARAMETER :: i_src = int(Nx / 2) + 1                    ! Injection de la source suivant l'axe x
       INTEGER, PARAMETER :: j_src = i_src                                 ! Injection de la source suivant l'axe y

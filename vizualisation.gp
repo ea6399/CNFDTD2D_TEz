@@ -4,7 +4,7 @@ step    = 2
 ncol    = int(Nx/step)+1
 nrow    = int(Ny/step)+1
 nblocks = 51             # nombre de cartes
-snapshot = 20           # pas de temps entre chaque carte
+snapshot = 100           # pas de temps entre chaque carte
 
 # on garde la palette par défaut
 set palette rgb 33,13,10
