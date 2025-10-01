@@ -298,7 +298,7 @@ MODULE fdtd
             !-------------------------------------------------------------!
             WRITE(*, '(/, T5, "Injection de la source en ", I5, I5)') i_src, j_src
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
-            snapshot = 20
+            snapshot = 10
 
             nrow = 2 * (Nx - 1)
             ncol = Ny - 1
@@ -326,7 +326,7 @@ MODULE fdtd
                         DO j = 1, Ny-1
                               ! Détermine le bonne indice
                               idx_Hx = i * (Nx + 1) + j
-                              ! print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
+                              print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
                               cn%rhs(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                       & 
                                           + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )                    &
                                           - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )                &
@@ -352,7 +352,7 @@ MODULE fdtd
                         DO j = 0,  Ny - 1
                               ! Détermine le bonne indice
                               idx_Hy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
-                              ! print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
+                               print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
                               ! Calcul du second membre Hy
                               cn%rhs(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                              & 
                                           + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
@@ -371,17 +371,7 @@ MODULE fdtd
                   !       cn%rhs(idx_Hy) = cn%rhs(idx_Hy + 1) 
                   ! END DO
 
-
-                  ! Résolution du système linéaire pour les champs H au temps n + 1
-                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%rhs, SIZE(cn%rhs), info)
-                  !print *, "pass 4"
-
-                  ! reshape du vecteur rhs / order = [2,1] fait varier j avant i
-                  B_pec = reshape(cn%rhs, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
-
-
-
-                                       ! Mise à jour explicite de Ez
+                                                                           ! Mise à jour explicite de Ez
                   DO i = 1, Nx-1
                         DO j = 1, Ny-1
                               cn%Ez(i,j) = cn%Ez(i,j) - cn%a1 / cn%dy * ( B_pec(i,j + 1) - B_pec(i,j)                      &
@@ -399,17 +389,29 @@ MODULE fdtd
                   cn%Ez(: ,Ny) = 0.d0          ! Bord supérieur
                   cn%Ez(0 ,:)  = 0.d0          ! Bord gauche
                   cn%Ez(Nx,:)  = 0.d0          ! Bord droit
+
+
+                  ! Résolution du système linéaire pour les champs H au temps n + 1
+                  CALL DGETRS('N', SIZE(cn%A,1), nrhs, cn%A, SIZE(cn%A,1), ipiv, cn%rhs, SIZE(cn%rhs), info)
+                  !print *, "pass 4"
+
+                  ! reshape du vecteur rhs / order = [2,1] fait varier j avant i
+                  B_pec = reshape(cn%rhs, shape = [ 2 * (Nx + 1), Ny + 1], order = [2, 1])
+
+
+
+
                   
                   ! Ecriture dans le fichier 
                   IF (MOD(n,snapshot) == 0) THEN
                         m = m + 1
-                        DO i = 0, Nx, 2
-                              DO j = 0, Ny, 2
+                        DO i = 0, Nx
+                              DO j = 0, Ny
                                     WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Ez(i,j)
-                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Hx(i,j)
+                                    !write(idfile    , '(F0.15,1X)', advance='no') cn%Hx(i,j)
                               END DO
                               WRITE(idfile + 1, *)
-                              write(idfile    , *)
+                              !write(idfile    , *)
                         END DO 
                         WRITE(idfile + 1, *)    
                         WRITE(idfile    , *)
