@@ -44,8 +44,8 @@ MODULE fdtd
 
             cn%a1 = cn%dt / (2.d0 * epsilon_0) 
             cn%a2 = cn%dt / (2.d0 * mu_0)
-            cn%bx = c * cn%dt / (2.d0 * cn%dx)
-            cn%by = c * cn%dt / (2.d0 * cn%dy)
+            cn%bx = c * cn%dt / (2.d0 * cn%dy)
+            cn%by = c * cn%dt / (2.d0 * cn%dx)
             WRITE(*, '(/,T5,A,ES17.3, /)') 'bx = ',cn%bx
             WRITE(*, '(/,T5,A,ES17.3, /)') 'by = ',cn%by
             WRITE(*, '(/,T5,A,ES17.3, /)') 'a1 = ', cn%a1
@@ -224,7 +224,7 @@ MODULE fdtd
             !-------------------------------------------------------------!
             WRITE(*, '(/, T5, "Injection de la source en ", I5, I5)') i_src, j_src
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
-            snapshot = 200
+            snapshot = 5
 
             m = 0
 
@@ -327,13 +327,13 @@ MODULE fdtd
                   ! Ecriture dans le fichier
                   IF (MOD(n,snapshot) == 0) THEN
                         m = m + 1
-                        DO i = 0, Nx, 2
-                              DO j = 0, Ny, 2
+                        DO i = 0, Nx
+                              DO j = 0, Ny
                                     WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Ez(i,j)
-                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Hy(i,j)
+                                    !write(idfile    , '(F0.15,1X)', advance='no') cn%Hy(i,j)
                               END DO
                               WRITE(idfile + 1, *)
-                              write(idfile    , *)
+                              !write(idfile    , *)
                         END DO
                         WRITE(idfile + 1, *)
                         WRITE(idfile    , *)
