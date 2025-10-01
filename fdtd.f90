@@ -321,12 +321,12 @@ MODULE fdtd
 
                   ! On parcourt l'entierté des champs Hx et Hy
                   ! Second membre Hx
-                  DO i = 0,  Nx-1
-                        !print *, "i = ", i
+                  DO i = 1,  Nx-1
+                        !print *, "i = ", i)
                         DO j = 1, Ny-1
                               ! Détermine le bonne indice
                               idx_Hx = i * (Nx + 1) + j
-                              print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
+                              !print *, "idx_Hx = ", idx_Hx, "i,j =", i , j
                               cn%rhs(idx_Hx) =      (1.d0 - 2.d0 * cn%bx**2) * cn%Hx(i,j)                       & 
                                           + cn%bx**2 * ( cn%Hx(i, j - 1) + cn%Hx(i, j + 1) )                    &
                                           - cn%bx*cn%by * ( cn%Hy(i + 1,  j)     - cn%Hy(i, j) )                &
@@ -349,10 +349,10 @@ MODULE fdtd
                   ! Second membre Hy
                   DO i = 1 , Nx-1
                         !print *, "i = ", i
-                        DO j = 0,  Ny - 1
+                        DO j = 1,  Ny - 1
                               ! Détermine le bonne indice
                               idx_Hy = (Nx+1)*(Ny+1) + i * (Nx + 1) + j
-                               print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
+                              !print *, "idx_Hy = ", idx_Hy, 'i,j =', i , j
                               ! Calcul du second membre Hy
                               cn%rhs(idx_Hy) =      (1.d0 - 2.d0 * cn%by**2)*cn%Hy(i,j)                              & 
                                           + cn%by**2 * ( cn%Hy(i - 1, j) + cn%Hy(i + 1, j)    )                    &
