@@ -121,6 +121,8 @@ MODULE fdtd
             display_it = .FALSE.  
             charac = ""   
 
+            !!!!! Implémentation de CRANK NICOLSON standard !!!!!
+
 
             !-------------------------------------------------------------!
             !------------------ Ecriture de la matrice A -----------------!
