@@ -121,7 +121,7 @@ MODULE fdtd
             display_it = .FALSE.  
             charac = ""   
 
-            !!!!! Implémentation de CRANK NICOLSON standard !!!!!!!
+            !!!!!!! Implémentation de CRANK NICOLSON standard !!!!!!!
 
 
             !-------------------------------------------------------------!
