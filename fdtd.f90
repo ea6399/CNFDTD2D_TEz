@@ -12,7 +12,7 @@ MODULE fdtd
                   INTEGER, ALLOCATABLE :: N_d(:)
                   INTEGER, ALLOCATABLE :: S(:)
                   REAL(8), ALLOCATABLE :: dx, dy, dt
-                  REAL(8), ALLOCATABLE :: Hx(:,:), Hy(:,:), Ez(:,:)
+                  REAL(8), ALLOCATABLE :: Ex(:,:), Ey(:,:), Hz(:,:)
                   REAL(8), ALLOCATABLE :: rhs(:)
                   REAL(8), ALLOCATABLE :: A(:,:)
                   REAL(8) :: a1, a2, bx, by
@@ -32,10 +32,10 @@ MODULE fdtd
             ! Initialisation des variables
             ALLOCATE(cn%N_d (        0:10       ) )                                      ! Grid sampling densities
             ALLOCATE(cn%S   (        0:50       ) )                                      ! Courant Number 
-            ALLOCATE(cn%Hx  (                    0:Nx, 0:Ny                               ) )
-            ALLOCATE(cn%Hy  (                    0:Nx, 0:Ny                               ) )
+            ALLOCATE(cn%Ex  (                    0:Nx, 0:Ny                               ) )
+            ALLOCATE(cn%Ey  (                    0:Nx, 0:Ny                               ) )
             ALLOCATE(cn%rhs   (                      0 : 2 * (Nx + 1) * (Ny + 1) - 1        ) )               ! Pour matrice A entiere
-            ALLOCATE(cn%Ez  (                 0 : Nx , 0:Ny                               ) )
+            ALLOCATE(cn%Hz  (                 0 : Nx , 0:Ny                               ) )
             ALLOCATE(cn%A   (   0 : 2 * (Nx + 1) - 1 , 0: 2 * (Ny + 1) - 1                ) )
 
 
@@ -72,9 +72,9 @@ MODULE fdtd
             ! Initialisation des champs
             cn%A = 0.d0
             cn%rhs = 0.d0
-            cn%Hx = 0.d0
-            cn%Hy = 0.d0
-            cn%Ez = 0.d0
+            cn%Ex = 0.d0
+            cn%Ey = 0.d0
+            cn%Hz = 0.d0
 
 
       END SUBROUTINE init
@@ -83,7 +83,7 @@ MODULE fdtd
             INTEGER, INTENT(in) :: i,j,n_var
             INTEGER :: function_idx
 
-            function_idx = (n_var-1) * (Nx + 1) * (Ny + 1) + j * (Nx + 1) + i
+            function_idx = (n_var - 1) * (Nx + 1) * (Ny + 1) + j * (Nx + 1) + i
             RETURN
       END FUNCTION function_idx
 
@@ -93,24 +93,46 @@ MODULE fdtd
             CHARACTER(LEN=500) :: charac 
             LOGICAL :: display_it
             INTEGER :: info
-            INTEGER :: n, m, n_var, n_node
-            INTEGER :: i,j, idx,i_var
+            INTEGER :: n, m, n_var, n_elt, A_row, A_col
+            INTEGER :: i,j, idx,idy,i_var
             INTEGER :: i0,j0,i1,j1
             INTEGER :: snapshot
-            INTEGER, ALLOCATABLE :: A(:, :)
+            INTEGER,ALLOCATABLE :: ipiv(:)
+            REAL(8), ALLOCATABLE :: A(:, :)
+            REAL(8), ALLOCATABLE :: rhs(:)
+            REAL(8) :: t_start, t_end, t_elapsed
 
             ! Variable d'indices pour 3 variables inconnus Ex, Ey, Hz de dimension (Nx+1)*(Ny+1) chacune
             n_var = 3
+            A_row = 3 * (Nx + 1)
+            A_col = 3 * (Ny + 1)
+            ALLOCATE(A(0: A_row - 1, 0: A_col - 1))
+            ALLOCATE(ipiv(0: A_row - 1))
+
+
+            A = 0.d0;
+            write(*, '(/,A,I5,I5,/)') "shape(A) = ", shape(A)
+            WRITE(*, '(/,A,I5,I5,/)') "shape(ipiv) = ", shape(ipiv)
             
 
-            DO i_var = 1, n_var
-                  DO j = 0, Ny
-                        DO i = 0, Nx
-                              idx = function_idx(i,j,i_var)
-                              WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
-                        END DO  
-                  END DO
-            END DO
+            ! DO i_var = 1, n_var
+            !       DO j = 0, Ny
+            !             DO i = 0, Nx
+            !                   idx = function_idx(i,j,i_var)
+            !                   WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
+            !             END DO  
+            !       END DO
+            ! END DO
+
+            ! DO i_var = 1, n_var
+            !       DO j = 0, Ny
+            !             DO i= 0, Nx
+            !                   idx = function_idx(i,j,i_var)
+            !                   A(idx,idx) = idx  ! Permet de visualiser la fonction d'indexation
+            !                   PRINT *, A(idx,idx)
+            !             END DO
+            !       END DO
+            ! END DO
 
             
             m = 0
@@ -133,24 +155,113 @@ MODULE fdtd
                         ! -------- ! -------- !-------!
 
 
+            n_elt = (Nx + 1) * (Ny + 1)   ! Nombre d'éléments par variable inconnue
+
+            DO i = 0,  n_elt - 1
+                  A(i,i) = 1.d0
+            END DO
+
+            DO i = 0, Nx
+                  DO j = 0, Ny
+                        !BLOC A13
+                        idy = 2 * (Nx + 1) + j
+                        IF (j == i) THEN
+                              A(i,idy) = - cn%a1 / cn%dy
+                              IF (j > 0) A(i,idy -1) = cn%a1 / cn%dy
+                        END IF
+
+                        ! Bloc A23
+                        idx = (Nx +1) + i
+                        IF (j == i) THEN
+                              A(idx,idy) = cn%a1 / cn%dx
+                              IF (i > 0) A(idx - 1,idy) = - cn%a1 / cn%dx
+                        END IF
+
+                        ! Bloc A31
+                        idx = 2 * (Nx + 1) + i 
+                        idy = j
+                        IF (j == i) THEN
+                              A(idx,idy) = - cn%a2 / cn%dy
+                              IF (j < Ny) A(idx ,idy + 1) = cn%a2 / cn%dy
+                        END IF
+
+                        ! Bloc A32
+                        idy = (Ny + 1) + j
+                        IF (j == i) THEN
+                              A(idx,idy) = - cn%a2 / cn%dx
+                              IF (i < Nx) A(idx + 1,idy) = cn%a2 / cn%dx
+                        END IF
+                  END DO
+            END DO
+
+            !CALL display_matrix(A, "A")
+
+            ! -------------------------------------------------------------!
+            ! ------------ Décomposition LU de la matrice A ---------------!
+            ! -------------------------------------------------------------!
+
+            CALL DGETRF(A_row, A_col, A, A_row, ipiv, info)
+            IF (info > 0) THEN
+                  WRITE(*,'(/,T5,A,I0,A,I0,A,/)') 'U(', info , ',', info ,') is exactly zero. The factorization has been completed, but the factor U is exactly singular.'
+                  STOP 'LU failed'
+            ELSE IF (info < 0) THEN
+                  WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
+                  STOP 'LU failed'
+            END IF
+
+            ! Ouverture du fichier de sortie
+            OPEN(idfile , file = "data/Ex.txt", status = "replace", action = "write", form = "formatted")
+            OPEN(idfile + 1 , file = "data/Hz.txt", status = "replace", action = "write", form = "formatted")
+
+            !-------------------------------------------------------------!
+            !------------------- Boucle temporelle -----------------------!
+            !-------------------------------------------------------------!
+            WRITE(*, '(/, T5, "Injection de la source en ", I5, I5)') i_src, j_src
+            WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
+            snapshot = 20
+
+            m = 0
+            ALLOCATE(rhs(0 : n_var * n_elt - 1))
+            rhs = 0.d0
+            WRITE(*, '(/,A,I5,I5)') "shape(rhs) = ", shape(rhs)
+            CALL cpu_time(t_start)
+
+            DO n = 0, Nt - 1
+
+                  !Injection de la source
+                  cn%Hz(i_src,j_src) = Esrc(n)
+
+                  DO i = 0, Nx
+                        DO j = 0, Ny
+                              !BLOC rhs1
+                              idx = 0
+                              idx = function_idx(i,j,1)
+                              print *, 'idx = ', idx
+                              rhs(idx) = cn%Ex(i,j) + cn%a1 / cn%dy * (                         &
+                                                                cn%Hz(i,j) - cn%Hz(i,j-1) )     
+                                               
+
+                              !BLOC rhs2
+                              idx = function_idx(i,j,2)
+                              print *, 'idx = ', idx
+                              rhs(idx) = cn%Ey(i,j) - cn%a1 / cn%dx * (                         &
+                                                                cn%Hz(i,j) - cn%Hz(i-1,j) )
+
+                              !BLOC rhs3
+                              idx = function_idx(i,j,3)
+                              print *, 'idx = ', idx
+                              rhs(idx) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%Ex(i,j+1) - cn%Ex(i,j) ) &
+                                                    - cn%a2 / cn%dx * ( cn%Ey(i+1,j) - cn%Ey(i,j) )
+                        END DO
+                  END DO
 
 
 
+            END DO
 
-
-
-
-
-
-
-
-            ! WRITE(*, '(/, T5, A, /)') "Test reshape du vecteur rhs :"
-            ! print *, "shape(B_pec) = ", shape(B_pec)
-
-            ! WRITE(*,'(2(AX,F16.10))') 'rhs(0)=',cn%rhs(0),' B_pec(0,0)=',B_pec(0,0)
-            ! WRITE(*,'(2(AX,F16.10))') 'rhs(1)=',cn%rhs(1),' B_pec(0,1)=',B_pec(0,1)
-            ! WRITE(*,'(2(AX,F16.10))') 'rhs(19)=',cn%rhs(19),' B_pec(3,3)=',B_pec(3,3)
-            ! WRITE(*,'(2(AX,F16.10))') 'rhs(Ny+1)=',cn%rhs(Ny+1),' B_pec(1,0)=',B_pec(1,0)
+            CALL cpu_time(t_end)
+            t_elapsed = t_end - t_start
+            WRITE(*, '(/, T5, A, F8.4, A, /)') "Temps de calcul total : ", t_elapsed, " secondes"
 
             WRITE(*, '(/, t5, A, I5)') "Nombre de blocs : ", m
             
@@ -176,11 +287,14 @@ MODULE fdtd
             IF (ALLOCATED(cn%S)) THEN
             DEALLOCATE(cn%S)
             END IF
-            IF (ALLOCATED(cn%Hx)) THEN
-            DEALLOCATE(cn%Hx)
+            IF (ALLOCATED(cn%Ex)) THEN
+            DEALLOCATE(cn%Ex)
             END IF
-            IF (ALLOCATED(cn%Ez)) THEN
-            DEALLOCATE(cn%Ez)
+            IF (ALLOCATED(cn%Ey)) THEN
+            DEALLOCATE(cn%Ey)
+            END IF
+            IF (ALLOCATED(cn%Hz)) THEN
+            DEALLOCATE(cn%Hz)
             END IF
             IF (ALLOCATED(cn%A)) THEN
             DEALLOCATE(cn%A)
@@ -226,72 +340,8 @@ MODULE fdtd
                   WRITE(*, '(/, T5, A, /)', advance = 'no') "Matrice :"
             END IF
             DO i = LBOUND(A,1), UBOUND(A,1)
-                  WRITE(*, '(I5,500F12.2)') i-1, A(i,:)
+                  WRITE(*, '(I5,500ES12.2)') i-1, A(i,:)
             END DO
       ENDSUBROUTINE display_matrix
-
-
-      SUBROUTINE extract_matrix_ud(A_int,A)
-            ! ARGUMENTS
-            REAL(8), INTENT(in), DIMENSION(:,:) :: A
-            REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
-
-            ! VARIABLES LOCALES
-            INTEGER :: idx_min
-            INTEGER :: idx_max
-            INTEGER :: idy_min
-            INTEGER :: idy_max
-
-            ! Initialisation 
-            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
-            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
-
-            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
-            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
-
-            ! Allocation en retirant les indices de bord en y
-            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
-
-            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
-            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
-            PRINT *, "shape(A_int) = ", shape(A_int)
-
-            A_int = 0.d0
-
-            ! Extraction de la matrice A
-            A_int = A(idx_min + 1 : idx_max - 1, : ) 
-      ENDSUBROUTINE extract_matrix_ud
-
-      SUBROUTINE extract_matrix_lr(A_int,A)
-            ! ARGUMENTS
-            REAL(8), INTENT(in), DIMENSION(:,:) :: A
-            REAL(8), INTENT(inout), DIMENSION(:,:), ALLOCATABLE :: A_int
-
-            ! VARIABLES LOCALES
-            INTEGER :: idx_min
-            INTEGER :: idx_max
-            INTEGER :: idy_min
-            INTEGER :: idy_max
-
-            ! Initialisation 
-            idx_min = LBOUND(A,1)          ! Indice inférieur de la dimension x 
-            idx_max = UBOUND(A,1)          ! Indice supérieur de la dimension x
-
-            idy_min = LBOUND(A,2)          ! Indice inférieur de la dimension y
-            idy_max = UBOUND(A,2)          ! Indice supérieur de la dimension y
-
-            ! Allocation en retirant les indices de bord en y
-            ALLOCATE(A_int(idx_min : idx_max, idy_min + 1 : idy_max - 1))
-
-            PRINT *, "idx_min, idx_max = ", idx_min, idx_max
-            PRINT *, "idy_min, idy_max = ", idy_min, idy_max
-            PRINT *, "shape(A_int) = ", shape(A_int)
-
-            A_int = 0.d0
-
-            ! Extraction de la matrice A
-            A_int = A( : , idy_min + 1 : idy_max - 1) 
-      ENDSUBROUTINE extract_matrix_lr
-
 
 END MODULE fdtd
