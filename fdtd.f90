@@ -83,7 +83,7 @@ MODULE fdtd
             INTEGER, INTENT(in) :: i,j,n_var
             INTEGER :: function_idx
 
-            function_idx = (n_var-1) * (Nx + 1) * (Ny + 1) + j * (Nx + 1) + i
+            function_idx = (n_var) * (Nx + 1) * (Ny + 1) + j * (Nx + 1) + i
             RETURN
       END FUNCTION function_idx
 
@@ -103,14 +103,14 @@ MODULE fdtd
             n_var = 3
             
 
-            DO i_var = 1, n_var
-                  DO j = 0, Ny
-                        DO i = 0, Nx
-                              idx = function_idx(i,j,i_var)
-                              WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
-                        END DO  
-                  END DO
-            END DO
+            ! DO i_var = 0, n_var -1 
+            !       DO j = 0, Ny
+            !             DO i = 0, Nx
+            !                   idx = function_idx(i,j,i_var)
+            !                   WRITE(*,'(4(AX,I5))') 'i var =',i_var,' i=',i,' j=',j,' idx=',idx
+            !             END DO  
+            !       END DO
+            ! END DO
 
             
             m = 0
