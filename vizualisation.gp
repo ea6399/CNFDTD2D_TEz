@@ -3,7 +3,7 @@ Ny      = 500
 step    = 2
 ncol    = int(Nx/step)+1
 nrow    = int(Ny/step)+1
-nblocks = 251             # nombre de cartes
+nblocks = 51             # nombre de cartes
 
 # on garde la palette par défaut
 set palette rgb 33,13,10
@@ -15,13 +15,13 @@ set xlabel "x"
 set ylabel "y"
 set title "Animation Hz"
 
-block1 = 50
-block2= 125
-block3 = 250
+block1 = 1
+block2= 25
+block3 = 50
 
-splot 'data/Ez.txt' index block1 matrix with image
-splot 'data/Ez.txt' index block2 matrix with image 
-splot 'data/Ez.txt' index block3 matrix with image
+splot 'data/Hz.txt' index block1 matrix with image
+splot 'data/Hz.txt' index block2 matrix with image
+splot 'data/Hz.txt' index block3 matrix with image
 #splot 'data/Hx.txt' index block1 matrix with image
 #splot 'data/Hx.txt' index block2 matrix with image
 #splot 'data/Hx.txt' index block3 matrix with image

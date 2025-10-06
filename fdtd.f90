@@ -104,8 +104,8 @@ MODULE fdtd
 
             ! Variable d'indices pour 3 variables inconnus Ex, Ey, Hz de dimension (Nx+1)*(Ny+1) chacune
             n_var = 3
-            A_row = 3 * (Nx + 1)
-            A_col = 3 * (Ny + 1)
+            A_row = n_var * (Nx + 1)
+            A_col = n_var * (Ny + 1)
             ALLOCATE(A(0: A_row - 1, 0: A_col - 1))
             ALLOCATE(ipiv(0: A_row - 1))
 
@@ -122,6 +122,33 @@ MODULE fdtd
             !                   WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
             !             END DO  
             !       END DO
+            ! END DO
+
+            ! PRINT *, ""
+
+            ! DO j = 0, Ny
+            !       DO i = 0, Nx
+            !             idx = function_idx(i,j,1)
+            !             WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
+            !       END DO  
+            ! END DO
+
+            ! Print *, ""     
+
+            !             DO j = 0, Ny
+            !       DO i = 0, Nx
+            !             idx = function_idx(i,j,2)
+            !             WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
+            !       END DO  
+            ! END DO
+
+            ! Print *, ""
+
+            !             DO j = 0, Ny
+            !       DO i = 0, Nx
+            !             idx = function_idx(i,j,3)
+            !             WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
+            !       END DO  
             ! END DO
 
             ! DO i_var = 1, n_var
@@ -223,38 +250,76 @@ MODULE fdtd
             m = 0
             ALLOCATE(rhs(0 : n_var * n_elt - 1))
             rhs = 0.d0
-            WRITE(*, '(/,A,I5,I5)') "shape(rhs) = ", shape(rhs)
+            WRITE(*, '(/,A,I10,I10)') "shape(rhs) = ", shape(rhs)
             CALL cpu_time(t_start)
 
             DO n = 0, Nt - 1
 
-                  !Injection de la source
-                  cn%Hz(i_src,j_src) = Esrc(n)
+                  IF (MOD(n,5 * snapshot) == 0) THEN
+                        WRITE(*, '(/,A,I10,/)') "Time step n = ", n
+                  END IF
 
-                  DO i = 0, Nx
-                        DO j = 0, Ny
+
+                  DO j = 0, Ny
+                        DO i = 0, Nx
                               !BLOC rhs1
-                              idx = 0
                               idx = function_idx(i,j,1)
-                              print *, 'idx = ', idx
+                              !print *, 'idx = ', idx
                               rhs(idx) = cn%Ex(i,j) + cn%a1 / cn%dy * (                         &
                                                                 cn%Hz(i,j) - cn%Hz(i,j-1) )     
                                                
 
                               !BLOC rhs2
                               idx = function_idx(i,j,2)
-                              print *, 'idx = ', idx
+                             ! print *, 'idx = ', idx
                               rhs(idx) = cn%Ey(i,j) - cn%a1 / cn%dx * (                         &
                                                                 cn%Hz(i,j) - cn%Hz(i-1,j) )
 
                               !BLOC rhs3
                               idx = function_idx(i,j,3)
-                              print *, 'idx = ', idx
+                              !print *, 'idx = ', idx
                               rhs(idx) = cn%Hz(i,j) + cn%a2 / cn%dy * ( cn%Ex(i,j+1) - cn%Ex(i,j) ) &
                                                     - cn%a2 / cn%dx * ( cn%Ey(i+1,j) - cn%Ey(i,j) )
                         END DO
                   END DO
 
+
+                  ! Injection de la source
+                  rhs(function_idx(i_src,j_src,3)) = Esrc(n)
+
+                  ! Résolution du système linéaire A * x = rhs
+                  CALL DGETRS('N', A_row, 1, A, A_row, ipiv, rhs, A_row, info)
+                  IF (info < 0) THEN
+                        WRITE(*,'(T5,A,I0,A,/)') 'The ',info,'-th argument had an ilegal value.'
+                        STOP 'Solve failed'
+                  END IF
+
+                  ! Récupération des champs Ex, Ey, Hz
+                  DO j = 0, Ny
+                        DO i = 0, Nx
+                              cn%Ex(i,j) = rhs(function_idx(i,j,1))
+                              cn%Ey(i,j) = rhs(function_idx(i,j,2))
+                              cn%Hz(i,j) = rhs(function_idx(i,j,3))
+                        END DO
+                  END DO
+
+
+
+
+                   ! Ecriture dans le fichier 
+                  IF (MOD(n,snapshot) == 0) THEN
+                        m = m + 1
+                        DO i = 0, Nx, 2
+                              DO j = 0, Ny, 2
+                                    WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
+                                    write(idfile    , '(F0.15,1X)', advance='no') cn%Ex(i,j)
+                              END DO
+                              WRITE(idfile + 1, *)
+                              write(idfile    , *)
+                        END DO 
+                        WRITE(idfile + 1, *)    
+                        WRITE(idfile    , *)
+                  END IF
 
 
             END DO
