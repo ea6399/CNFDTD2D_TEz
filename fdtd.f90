@@ -97,20 +97,38 @@ MODULE fdtd
             INTEGER :: i,j, idx,i_var
             INTEGER :: i0,j0,i1,j1
             INTEGER :: snapshot
-            INTEGER, ALLOCATABLE :: A(:, :)
+            REAL(8), ALLOCATABLE :: A(:, :)
 
             ! Variable d'indices pour 3 variables inconnus Ex, Ey, Hz de dimension (Nx+1)*(Ny+1) chacune
             n_var = 3
             
 
-            ! DO i_var = 0, n_var -1 
-            !       DO j = 0, Ny
-            !             DO i = 0, Nx
-            !                   idx = function_idx(i,j,i_var)
-            !                   WRITE(*,'(4(AX,I5))') 'i var =',i_var,' i=',i,' j=',j,' idx=',idx
-            !             END DO  
-            !       END DO
-            ! END DO
+            DO i_var = 0, n_var -1 
+                  DO j = 0, Ny
+                        DO i = 0, Nx
+                              idx = function_idx(i,j,i_var)
+                              WRITE(*,'(4(AX,I5))') 'i var =',i_var,' i=',i,' j=',j,' idx=',idx
+                        END DO
+                  END DO
+            END DO
+
+            ! Remplissage d'une matrice avec la fonction d'indexation
+            ALLOCATE(A(0: 3 * (Nx + 1) - 1, 0: 3 * (Ny + 1) - 1))
+
+            A = 0.d0;
+            write(*, '(/,A,I5,I5,/)') "shape(A) = ", shape(A)
+
+            DO i_var = 0, n_var -1
+                  DO j = 0, Ny
+                        DO i= 0, Nx
+                              idx = function_idx(i,j,i_var)
+                              A(idx,idx) = idx  ! Permet de visualiser la fonction d'indexation
+                              PRINT *, A(idx,idx)
+                        END DO
+                  END DO
+            END DO
+
+
 
             
             m = 0
