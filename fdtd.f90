@@ -43,17 +43,19 @@ MODULE fdtd
             ! PRINT *, 'N_d = ', cn%N_d
             ! print *, 'size(N_d)' , size(cn%N_d)
 
+
+
             cn%S = (/ (2*i, i = 0,50) /)
             ! PRINT *, 'S = ', cn%S
             ! print *, 'size(S)' , size(cn%S)
 
 
-            cn%dx = (c / fmax) / cn%N_d(3) 
+            cn%dx = (c / fmax) / mesh_density
             cn%dy = cn%dx
             WRITE(*, '(/,T5,A,ES17.3, /)') 'dx = ', cn%dx
 
 
-            cn%dt = 0.98d0 / ( c * sqrt(  1.0d0 / (cn%dx * cn%dx)  + 1.0d0 / (cn%dy * cn%dy) ) )
+            cn%dt = CFL / ( c * sqrt(  1.0d0 / (cn%dx * cn%dx)  + 1.0d0 / (cn%dy * cn%dy) ) )
             WRITE(*, '(/,T5,A,ES17.3, /)') 'dt = ', cn%dt
 
             WRITE(*, '(/,T5, A,F17.12, /)') 'Courant number cdt/dx = ', abs(c * cn%dt / cn%dx)
@@ -96,7 +98,6 @@ MODULE fdtd
             INTEGER :: n, m, n_var, n_elt, A_row, A_col
             INTEGER :: i,j, idx,idy,i_var
             INTEGER :: i0,j0,i1,j1
-            INTEGER :: snapshot
             INTEGER,ALLOCATABLE :: ipiv(:)
             REAL(8), ALLOCATABLE :: A(:, :)
             REAL(8), ALLOCATABLE :: rhs(:)
@@ -106,6 +107,11 @@ MODULE fdtd
             n_var = 3
             A_row = n_var * (Nx + 1)
             A_col = n_var * (Ny + 1)
+            n_elt = (Nx + 1) * (Ny + 1)   ! Nombre d'éléments par variable inconnue
+            n_elt = n_var * n_elt
+            WRITE(*, '(/,A,I10)') "Nombre d'éléments par variable inconnue n_elt = ", n_elt
+            
+
             ALLOCATE(A(0: A_row - 1, 0: A_col - 1))
             ALLOCATE(ipiv(0: A_row - 1))
 
@@ -113,53 +119,11 @@ MODULE fdtd
             A = 0.d0;
             write(*, '(/,A,I5,I5,/)') "shape(A) = ", shape(A)
             WRITE(*, '(/,A,I5,I5,/)') "shape(ipiv) = ", shape(ipiv)
-            
 
-            ! DO i_var = 1, n_var
-            !       DO j = 0, Ny
-            !             DO i = 0, Nx
-            !                   idx = function_idx(i,j,i_var)
-            !                   WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
-            !             END DO  
-            !       END DO
-            ! END DO
-
-            ! PRINT *, ""
-
-            ! DO j = 0, Ny
-            !       DO i = 0, Nx
-            !             idx = function_idx(i,j,1)
-            !             WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
-            !       END DO  
-            ! END DO
-
-            ! Print *, ""     
-
-            !             DO j = 0, Ny
-            !       DO i = 0, Nx
-            !             idx = function_idx(i,j,2)
-            !             WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
-            !       END DO  
-            ! END DO
-
-            ! Print *, ""
-
-            !             DO j = 0, Ny
-            !       DO i = 0, Nx
-            !             idx = function_idx(i,j,3)
-            !             WRITE(*,'(3(AX,I5))') 'i=',i,' j=',j,' idx=',idx
-            !       END DO  
-            ! END DO
-
-            ! DO i_var = 1, n_var
-            !       DO j = 0, Ny
-            !             DO i= 0, Nx
-            !                   idx = function_idx(i,j,i_var)
-            !                   A(idx,idx) = idx  ! Permet de visualiser la fonction d'indexation
-            !                   PRINT *, A(idx,idx)
-            !             END DO
-            !       END DO
-            ! END DO
+            OPEN(100, file = "data/params.txt", status = "replace", action = "write")
+                  WRITE(100,*) Nx, Ny, Nt, cn%dx, cn%dy, cn%dt, snapshot, mesh_density, CFL, c, i_src, j_src
+            CLOSE(100)
+      
 
             
             m = 0
@@ -181,8 +145,6 @@ MODULE fdtd
                         !   A31    !   A32    !  A33  !
                         ! -------- ! -------- !-------!
 
-
-            n_elt = (Nx + 1) * (Ny + 1)   ! Nombre d'éléments par variable inconnue
 
             DO i = 0,  n_elt - 1
                   A(i,i) = 1.d0
@@ -245,12 +207,11 @@ MODULE fdtd
             !-------------------------------------------------------------!
             WRITE(*, '(/, T5, "Injection de la source en ", I5, I5)') i_src, j_src
             WRITE(*, '(/, T5, A, /)') "Début de la boucle temporelle"
-            snapshot = 20
 
             m = 0
             ALLOCATE(rhs(0 : n_var * n_elt - 1))
             rhs = 0.d0
-            WRITE(*, '(/,A,I10,I10)') "shape(rhs) = ", shape(rhs)
+            WRITE(*, '(/,A,I10)') "shape(rhs) = ", size(rhs)
             CALL cpu_time(t_start)
 
             DO n = 0, Nt - 1
@@ -258,6 +219,17 @@ MODULE fdtd
                   IF (MOD(n,5 * snapshot) == 0) THEN
                         WRITE(*, '(/,A,I10,/)') "Time step n = ", n
                   END IF
+
+                  
+
+                  ! Récupération des champs Ex, Ey, Hz
+                  DO j = 0, Ny
+                        DO i = 0, Nx
+                              cn%Ex(i,j) = rhs(function_idx(i,j,1))
+                              cn%Ey(i,j) = rhs(function_idx(i,j,2))
+                              cn%Hz(i,j) = rhs(function_idx(i,j,3))
+                        END DO
+                  END DO
 
 
                   DO j = 0, Ny
@@ -285,7 +257,7 @@ MODULE fdtd
 
 
                   ! Injection de la source
-                  rhs(function_idx(i_src,j_src,3)) = Esrc(n)
+                  rhs(function_idx(i_src,j_src,3)) = rhs(function_idx(i_src,j_src,3)) + Esrc(n)
 
                   ! Résolution du système linéaire A * x = rhs
                   CALL DGETRS('N', A_row, 1, A, A_row, ipiv, rhs, A_row, info)
@@ -294,23 +266,13 @@ MODULE fdtd
                         STOP 'Solve failed'
                   END IF
 
-                  ! Récupération des champs Ex, Ey, Hz
-                  DO j = 0, Ny
-                        DO i = 0, Nx
-                              cn%Ex(i,j) = rhs(function_idx(i,j,1))
-                              cn%Ey(i,j) = rhs(function_idx(i,j,2))
-                              cn%Hz(i,j) = rhs(function_idx(i,j,3))
-                        END DO
-                  END DO
-
-
 
 
                    ! Ecriture dans le fichier 
                   IF (MOD(n,snapshot) == 0) THEN
                         m = m + 1
-                        DO i = 0, Nx, 2
-                              DO j = 0, Ny, 2
+                        DO i = 0, Nx
+                              DO j = 0, Ny
                                     WRITE(idfile + 1, '(F0.15,1X)', advance='no') cn%Hz(i,j)
                                     write(idfile    , '(F0.15,1X)', advance='no') cn%Ex(i,j)
                               END DO
