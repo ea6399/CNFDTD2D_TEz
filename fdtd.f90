@@ -112,8 +112,8 @@ MODULE fdtd
             WRITE(*, '(/,A,I10)') "Nombre d'éléments par variable inconnue n_elt = ", n_elt
             
 
-            ALLOCATE(A(0: A_row - 1, 0: A_col - 1))
-            ALLOCATE(ipiv(0: A_row - 1))
+            ALLOCATE(A(0: n_elt - 1, 0: n_elt - 1))
+            ALLOCATE(ipiv(0: n_elt - 1))
 
 
             A = 0.d0;
